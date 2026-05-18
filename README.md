@@ -3,7 +3,6 @@
 <p align="center">
   <a href="https://github.com/leonardespi/valua">
     <picture>
-      <source srcset="https://raw.githubusercontent.com/leonardespi/valua/main/docs/logos/dark-logo.png">
       <img alt="valua logo" src="https://raw.githubusercontent.com/leonardespi/valua/main/docs/logos/valua_logo.png" width="450">
     </picture>
   </a>
