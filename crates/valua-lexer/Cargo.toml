@@ -1,0 +1,17 @@
+[package]
+name        = "valua-lexer"
+description = "Lua 5.4 tokenizer for the valua transpiler"
+edition.workspace     = true
+version.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+rust-version.workspace = true
+
+[dependencies]
+valua-diagnostics = { workspace = true }
+logos             = { workspace = true }
+thiserror         = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+insta             = { workspace = true }
