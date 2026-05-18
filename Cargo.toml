@@ -1,0 +1,67 @@
+[workspace]
+members = [
+    "crates/valua-cli",
+    "crates/valua-core",
+    "crates/valua-lexer",
+    "crates/valua-parser",
+    "crates/valua-ast",
+    "crates/valua-transformer",
+    "crates/valua-codegen",
+    "crates/valua-diagnostics",
+    "crates/valua-polyfills",
+]
+resolver = "2"
+
+# Root package hosts the end-to-end integration tests in tests/integration_tests.rs.
+[package]
+name        = "valua"
+description = "Lua 5.4 → 5.1/LuaJIT transpiler (workspace integration-test host)"
+edition.workspace     = true
+version.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+rust-version.workspace = true
+
+[lib]
+name = "valua"
+path = "src/lib.rs"
+
+[workspace.package]
+edition      = "2021"
+version      = "0.1.0"
+authors      = ["leonardespi"]
+license      = "MIT"
+rust-version = "1.75"
+
+[workspace.dependencies]
+# Internal crates
+valua-ast         = { path = "crates/valua-ast" }
+valua-core        = { path = "crates/valua-core" }
+valua-lexer       = { path = "crates/valua-lexer" }
+valua-parser      = { path = "crates/valua-parser" }
+valua-transformer = { path = "crates/valua-transformer" }
+valua-codegen     = { path = "crates/valua-codegen" }
+valua-diagnostics = { path = "crates/valua-diagnostics" }
+valua-polyfills   = { path = "crates/valua-polyfills" }
+
+# External dependencies
+logos               = "0.14"
+thiserror           = "1"
+anyhow              = "1"
+clap                = { version = "4", features = ["derive"] }
+codespan-reporting  = "0.11"
+tracing             = "0.1"
+tracing-subscriber  = { version = "0.3", features = ["env-filter"] }
+serde               = { version = "1", features = ["derive"] }
+
+# Dev dependencies
+insta               = "1"
+pretty_assertions   = "1"
+
+[dependencies]
+valua-core = { workspace = true }
+
+[dev-dependencies]
+valua-core        = { workspace = true }
+insta             = { workspace = true }
+pretty_assertions = { workspace = true }
