@@ -1,6 +1,4 @@
-//! Diagnostic types for reporting errors, warnings, and notes with source spans.
-
-use codespan_reporting::term::termcolor::ColorChoice;
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream, WriteColor};
 
 #[cfg(feature = "serde")]
 use serde::Serialize;
@@ -19,6 +17,12 @@ pub struct Span {
     pub col: u32,
 }
 
+impl std::fmt::Display for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.line, self.col)
+    }
+}
+
 impl Span {
     /// Create a new span from raw fields.
     pub fn new(start: usize, end: usize, line: u32, col: u32) -> Self {
@@ -31,12 +35,16 @@ impl Span {
     }
 
     /// Merge two spans into one that covers both.
+    ///
+    /// The column of the merged span comes from whichever span starts first
+    /// in the source (smaller `start` offset).
     pub fn merge(self, other: Self) -> Self {
+        let first = if self.start <= other.start { self } else { other };
         Self {
             start: self.start.min(other.start),
             end: self.end.max(other.end),
             line: self.line.min(other.line),
-            col: self.col,
+            col: first.col,
         }
     }
 }
@@ -52,7 +60,8 @@ pub enum Severity {
     Note,
 }
 
-/// A structured diagnostic message with optional error code and fix suggestion.
+/// A structured diagnostic message with optional error code, fix suggestion,
+/// and secondary source spans.
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
     pub severity: Severity,
@@ -62,22 +71,46 @@ pub struct Diagnostic {
     pub code: Option<&'static str>,
     /// Human-readable fix hint shown below the message.
     pub suggestion: Option<String>,
+    /// Additional labeled spans rendered alongside the primary span.
+    /// Each entry is `(span, label_message)`.
+    pub secondary_labels: Vec<(Span, String)>,
 }
 
 impl Diagnostic {
     /// Build an error-level diagnostic.
     pub fn error(message: impl Into<String>, span: Span) -> Self {
-        Self { severity: Severity::Error, message: message.into(), span, code: None, suggestion: None }
+        Self {
+            severity: Severity::Error,
+            message: message.into(),
+            span,
+            code: None,
+            suggestion: None,
+            secondary_labels: Vec::new(),
+        }
     }
 
     /// Build a warning-level diagnostic.
     pub fn warning(message: impl Into<String>, span: Span) -> Self {
-        Self { severity: Severity::Warning, message: message.into(), span, code: None, suggestion: None }
+        Self {
+            severity: Severity::Warning,
+            message: message.into(),
+            span,
+            code: None,
+            suggestion: None,
+            secondary_labels: Vec::new(),
+        }
     }
 
     /// Build a note-level diagnostic.
     pub fn note(message: impl Into<String>, span: Span) -> Self {
-        Self { severity: Severity::Note, message: message.into(), span, code: None, suggestion: None }
+        Self {
+            severity: Severity::Note,
+            message: message.into(),
+            span,
+            code: None,
+            suggestion: None,
+            secondary_labels: Vec::new(),
+        }
     }
 
     /// Attach a short error code.
@@ -91,6 +124,13 @@ impl Diagnostic {
         self.suggestion = Some(suggestion.into());
         self
     }
+
+    /// Attach an additional labeled span shown alongside the primary span.
+    /// Used for two-location diagnostics such as E0301 (declaration + mutation site).
+    pub fn with_secondary_label(mut self, span: Span, message: impl Into<String>) -> Self {
+        self.secondary_labels.push((span, message.into()));
+        self
+    }
 }
 
 /// Trait for sinks that receive and display diagnostics.
@@ -102,10 +142,61 @@ pub trait Reporter {
     fn has_errors(&self) -> bool;
 }
 
+// ── Rendering helpers ─────────────────────────────────────────────────────────
+
+fn render_to_writer(writer: &mut dyn WriteColor, diagnostic: &Diagnostic, source: &str, filename: &str) {
+    use codespan_reporting::diagnostic::{Diagnostic as CsDiag, Label, Severity as CsSeverity};
+    use codespan_reporting::files::SimpleFiles;
+    use codespan_reporting::term;
+
+    let mut files: SimpleFiles<&str, &str> = SimpleFiles::new();
+    let file_id = files.add(filename, source);
+
+    let cs_severity = match diagnostic.severity {
+        Severity::Error => CsSeverity::Error,
+        Severity::Warning => CsSeverity::Warning,
+        Severity::Note => CsSeverity::Note,
+    };
+
+    let mut labels = vec![
+        Label::primary(file_id, diagnostic.span.start..diagnostic.span.end)
+            .with_message(&diagnostic.message),
+    ];
+
+    for (span, msg) in &diagnostic.secondary_labels {
+        labels.push(Label::secondary(file_id, span.start..span.end).with_message(msg));
+    }
+
+    let mut cs_diag = CsDiag::new(cs_severity)
+        .with_message(&diagnostic.message)
+        .with_labels(labels);
+
+    if let Some(code) = diagnostic.code {
+        cs_diag = cs_diag.with_code(code);
+    }
+
+    if let Some(ref suggestion) = diagnostic.suggestion {
+        cs_diag = cs_diag.with_notes(vec![format!("suggestion: {suggestion}")]);
+    }
+
+    let config = term::Config::default();
+    if let Err(e) = term::emit(writer, &config, &files, &cs_diag) {
+        eprintln!("valua: failed to render diagnostic: {e}");
+    }
+}
+
+/// Render a diagnostic to a plain string with no ANSI color codes.
+/// Intended for tests that verify visual layout of error output.
+pub fn render_diagnostic_to_string(diagnostic: &Diagnostic, source: &str, filename: &str) -> String {
+    use codespan_reporting::term::termcolor::Buffer;
+    let mut buf = Buffer::no_color();
+    render_to_writer(&mut buf, diagnostic, source, filename);
+    String::from_utf8_lossy(buf.as_slice()).into_owned()
+}
+
 /// Writes diagnostics to stderr using `codespan-reporting`.
 pub struct ConsoleReporter {
     error_count: usize,
-    #[allow(dead_code)]
     color: ColorChoice,
 }
 
@@ -122,12 +213,13 @@ impl ConsoleReporter {
 }
 
 impl Reporter for ConsoleReporter {
-    fn report(&mut self, diagnostic: &Diagnostic, _source: &str, _filename: &str) {
+    fn report(&mut self, diagnostic: &Diagnostic, source: &str, filename: &str) {
         if diagnostic.severity == Severity::Error {
             self.error_count += 1;
         }
-        // TODO: render via codespan_reporting::term::emit
-        todo!("wire up codespan-reporting term::emit for pretty terminal output")
+        let writer = StandardStream::stderr(self.color);
+        let mut lock = writer.lock();
+        render_to_writer(&mut lock, diagnostic, source, filename);
     }
 
     fn has_errors(&self) -> bool {
@@ -155,21 +247,65 @@ impl Reporter for CollectingReporter {
 mod tests {
     use super::*;
 
-    #[test]
-    #[ignore = "TODO: verify Span::merge covers both endpoints"]
-    fn test_span_merge() {
-        todo!()
+    fn span(start: usize, end: usize, line: u32, col: u32) -> Span {
+        Span::new(start, end, line, col)
     }
 
     #[test]
-    #[ignore = "TODO: verify Diagnostic builder chains code and suggestion"]
+    fn test_span_merge_covers_both_endpoints() {
+        let a = span(0, 5, 1, 1);
+        let b = span(3, 10, 2, 3);
+        let m = a.merge(b);
+        assert_eq!(m.start, 0);
+        assert_eq!(m.end, 10);
+    }
+
+    #[test]
+    fn test_span_merge_col_from_earlier_span() {
+        // col must come from the span with smaller start, not always self
+        let earlier = span(0, 5, 1, 7);
+        let later = span(6, 10, 1, 15);
+        // self is later, other is earlier — col must still be 7
+        let m = later.merge(earlier);
+        assert_eq!(m.col, 7, "col should be from whichever span starts first");
+    }
+
+    #[test]
+    fn test_span_display() {
+        let s = span(0, 5, 3, 7);
+        assert_eq!(format!("{s}"), "3:7");
+    }
+
+    #[test]
     fn test_diagnostic_builder() {
-        todo!()
+        let s = span(0, 1, 1, 1);
+        let d = Diagnostic::error("bad token", s)
+            .with_code("E0001")
+            .with_suggestion("remove it");
+        assert_eq!(d.severity, Severity::Error);
+        assert_eq!(d.code, Some("E0001"));
+        assert!(d.suggestion.is_some());
     }
 
     #[test]
-    #[ignore = "TODO: CollectingReporter::has_errors is true after an error"]
+    fn test_diagnostic_secondary_label() {
+        let s1 = span(0, 5, 1, 1);
+        let s2 = span(10, 15, 3, 1);
+        let d = Diagnostic::error("mutation", s2)
+            .with_secondary_label(s1, "declared here");
+        assert_eq!(d.secondary_labels.len(), 1);
+        assert_eq!(d.secondary_labels[0].1, "declared here");
+    }
+
+    #[test]
     fn test_collecting_reporter_tracks_errors() {
-        todo!()
+        let mut r = CollectingReporter::default();
+        let s = span(0, 1, 1, 1);
+        assert!(!r.has_errors());
+        r.report(&Diagnostic::warning("w", s), "", "f");
+        assert!(!r.has_errors());
+        r.report(&Diagnostic::error("e", s), "", "f");
+        assert!(r.has_errors());
+        assert_eq!(r.diagnostics.len(), 2);
     }
 }
