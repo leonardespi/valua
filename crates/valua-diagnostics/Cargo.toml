@@ -1,0 +1,19 @@
+[package]
+name        = "valua-diagnostics"
+description = "Diagnostic types and reporting for the valua transpiler"
+edition.workspace     = true
+version.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+rust-version.workspace = true
+
+[features]
+serde = ["dep:serde"]
+
+[dependencies]
+thiserror          = { workspace = true }
+codespan-reporting = { workspace = true }
+serde              = { workspace = true, optional = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
