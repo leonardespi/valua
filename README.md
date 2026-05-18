@@ -11,30 +11,47 @@
 </p>
 
 <p align="center">
-    <strong>A high-performance, ahead-of-time Lua 5.5 to LuaJIT compiler implemented in Rust.</strong>
+    <i>A modern, high-performance Lua 5.5 to LuaJIT compiler written in Rust.</i>
 </p>
 
+<a href="https://crates.io/crates/valua">
+    <img src="https://img.shields.io/crates/v/valua?color=%23e9573f&label=crates.io" alt="Crates.io version">
+</a>
+
+<!--
 <p align="center">
 <a href="https://github.com/leonardespi/valua/actions/workflows/test.yml">
     <img src="https://github.com/leonardespi/valua/actions/workflows/test.yml/badge.svg" alt="Test Status">
 </a>
+-->
 <a href="https://github.com/leonardespi/valua/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/leonardespi/valua?color=blue" alt="License">
 </a>
+
+<a href="https://www.lua.org/manual/5.5/">
+    <img src="https://img.shields.io/badge/lua-5.5-002040?logo=lua&logoColor=white" alt="Supported Lua Source Version">
+</a>
+<a href="https://luajit.org/">
+    <img src="https://img.shields.io/badge/target-LuaJIT-208888" alt="Compatible with LuaJIT">
+</a>
+
 </p>
 
 ---
+
+**Documentation**:
 
 **Source Code**: [https://github.com/leonardespi/valua](https://github.com/leonardespi/valua)
 
 ---
 
-**valua** is a professional-grade, lightning-fast transpiler engineered to resolve runtime fragmentation within the Lua ecosystem. It seamlessly translates modern **Lua 5.5** source code into optimized, syntactically backward-compatible **Lua 5.1** streams, designed for native high-velocity execution under **LuaJIT**.
+**valua** is a professionalanf fast transpiler engineered to resolve runtime fragmentation within the Lua ecosystem. It translates modern **Lua 5.5** source code into compatible **Lua 5.1** streams, designed for native high-velocity execution under **LuaJIT**.
 
 ### Key Architecture Features
 
 * **Zero-Cost Performance Mapping**: Translates target-agnostic Abstract Syntax Trees (AST) directly into LuaJIT-friendly execution patterns, ensuring maximum JIT-compiler throughput and zero runtime overhead.
-* **Memory-Safe Rust Core**: Leverages Rust's strict memory safety guarantees and thread-safe parsing routines for a highly predictable and deterministic compilation pipeline.
+  
+* **Memory-Safe Rust Core**: Uses Rust's strict memory safety guarantees and thread-safe parsing routines for a highly predictable and deterministic compilation pipeline.
 * **Modern Syntax Bridging**: Delivers complete baseline support for Lua 5.5 semantics—including bitwise operators, compact array literals, and attributes—to runtimes historically restricted to 5.1 constraints.
 * **Fail-Fast Semantic Guarantees**: Eliminates silent runtime compilation issues by implementing a strict ahead-of-time validation pass that rejects borderline lexical ambiguities with explicit error diagnostics.
 * **Decoupled Static Analysis**: Ships with `valua-lint` as an autonomous public crate, enabling plug-and-play integration with continuous integration (CI) workflows and editor language servers without committing to full code emission.
@@ -75,58 +92,7 @@ A recurring challenge when bridging modern Lua specifications down to LuaJIT is 
 
 Enforcing perfect runtime arithmetic mirroring across this barrier requires wrapping every mathematical operator in a heap-allocated emulation layer. Benchmarks indicate this degrades raw performance by factors between **20x and 100x**, fundamentally defeating the purpose of targeting LuaJIT. Statically identifying whether a script genuinely depends on strict integer overflow properties reduces directly to the Halting Problem.
 
-**valua's architectural response is deterministic boundary definition:** What you compile is exactly what executes. By shifting verification from a complex runtime emulation layer to a predictable static compiler barrier, you receive consistent execution speeds with zero performance penalties. The full formal proof is available in [docs/demostracion_transpilacion_lua.md](docs/demostracion_transpilacion_lua.md).
-
----
-
-## Architecture Blueprint
-
-`valua` is structured as a highly modular Cargo workspace where each discrete step of the compilation pipeline operates as an independent, reusable crate.
-
-
-```mermaid
-
-flowchart TD
-    %% Nodes Definition
-    Source([Source Text])
-    Lexer[valua-lexer]
-    Tokens[Token Stream]
-    Parser[valua-parser]
-    AST[Abstract Syntax Tree]
-    Lint[valua-lint<br>Standalone Static Analysis]
-    Transformer[valua-transformer]
-    NewAST[Rewritten Target-Agnostic AST]
-    Codegen[valua-codegen]
-    Output([Lua 5.1 / LuaJIT Compliant Output])
-
-    %% Pipeline Flow
-    Source --> Lexer
-    Lexer --> Tokens
-    Tokens --> Parser
-    Parser --> AST
-    
-    %% Branching from AST
-    AST --> Lint
-    AST --> Transformer
-    
-    Transformer --> NewAST
-    NewAST --> Codegen
-    Codegen --> Output
-
-    %% Styling for crisp open-source documentation look
-    classDef crate fill:#1e293b,stroke:#0ea5e9,stroke-width:2px,color:#f8fafc;
-    classDef data fill:#0f172a,stroke:#64748b,stroke-width:1px,stroke-dasharray: 4 4,color:#cbd5e1;
-    classDef standalone fill:#1e293b,stroke:#10b981,stroke-width:2px,color:#f8fafc;
-    
-    class Lexer,Parser,Transformer,Codegen crate;
-    class Lint standalone;
-    class Source,Tokens,AST,NewAST,Output data;
-```
-
-The workflow execution is driven by `valua-core` and packaged as an executable CLI interface within `valua-cli`. Two foundational crates maintain public SemVer compliance:
-
-* **`valua-lint`**: Static validation and structural linting without transpilation dependencies. Highly optimized for Git pre-commit hooks and syntax verification engine pipelines.
-* **`valua-core`**: The standard programmatic integration vector exposing the compilation orchestrator: `Compiler::compile(source, opts) -> Result<String, CompileError>`.
+**valua's architectural response is deterministic boundary definition:** What you compile is exactly what executes. By shifting verification from a complex runtime emulation layer to a predictable static compiler barrier, you receive consistent execution speeds with zero performance penalties.
 
 ---
 
