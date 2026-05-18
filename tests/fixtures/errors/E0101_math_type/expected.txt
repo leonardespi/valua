@@ -1,0 +1,10 @@
+-- CONJECTURE: no runtime available; diagnostic format derived from PRD §7.3 and fixture README; column numbers unverified; see CONJECTURE_REGISTER.md C011
+error[E0101]: reflection of numerical types is not representable in LuaJIT target
+  --> input.lua:5:14
+   |
+5  | local kind = math.type(x)
+   |              ^^^^^^^^^
+   |
+   = note: Lua 5.4 math.type() observes the integer/float distinction which does not exist in LuaJIT
+   = help: Remove the type discrimination or refactor to track numeric kind in user code
+   = see:  PRD §5.2

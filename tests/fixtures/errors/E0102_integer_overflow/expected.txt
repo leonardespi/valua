@@ -1,0 +1,10 @@
+-- CONJECTURE: no runtime available; exact detection trigger and column numbers unverified; see CONJECTURE_REGISTER.md C012
+error[E0102]: integer overflow semantics differ between Lua 5.4 and LuaJIT
+  --> input.lua:4:13
+   |
+4  | local max = 9223372036854775807
+   |             ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: This literal is a 64-bit integer at math.maxinteger; arithmetic on it produces different results in LuaJIT (IEEE 754 double)
+   = help: Use bit.* operations on the bit pattern explicitly, or accept double-precision semantics
+   = see:  PRD §5.2
