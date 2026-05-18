@@ -3,9 +3,8 @@
 <p align="center">
   <a href="https://github.com/leonardespi/valua">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/leonardespi/valua/main/docs/logos/dark-logo.png">
-      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/leonardespi/valua/main/docs/logos/light-logo.png">
-      <img alt="valua logo" src="https://raw.githubusercontent.com/leonardespi/valua/main/docs/logos/dark-logo.png" width="450">
+      <source srcset="https://raw.githubusercontent.com/leonardespi/valua/main/docs/logos/dark-logo.png">
+      <img alt="valua logo" src="https://raw.githubusercontent.com/leonardespi/valua/main/docs/logos/valua_logo.png" width="450">
     </picture>
   </a>
 </p>
