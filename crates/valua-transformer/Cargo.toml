@@ -1,0 +1,18 @@
+[package]
+name        = "valua-transformer"
+description = "AST mutation passes that lower Lua 5.4 features to Lua 5.1 equivalents"
+edition.workspace     = true
+version.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+rust-version.workspace = true
+
+[dependencies]
+valua-diagnostics = { workspace = true }
+valua-ast         = { workspace = true }
+valua-polyfills   = { workspace = true }
+thiserror         = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+insta             = { workspace = true }
