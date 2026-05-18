@@ -1,0 +1,17 @@
+[package]
+name        = "valua-codegen"
+description = "Lua 5.1 code emitter for the valua transpiler"
+edition.workspace     = true
+version.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+rust-version.workspace = true
+
+[dependencies]
+valua-diagnostics = { workspace = true }
+valua-ast         = { workspace = true }
+thiserror         = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+insta             = { workspace = true }
