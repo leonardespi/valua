@@ -1,0 +1,23 @@
+[package]
+name        = "valua-cli"
+description = "Command-line interface for the valua Lua 5.4 → 5.1 transpiler"
+edition.workspace     = true
+version.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+rust-version.workspace = true
+
+[[bin]]
+name = "valua"
+path = "src/main.rs"
+
+[dependencies]
+valua-core         = { workspace = true }
+valua-diagnostics  = { workspace = true }
+anyhow             = { workspace = true }
+clap               = { workspace = true }
+tracing            = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
