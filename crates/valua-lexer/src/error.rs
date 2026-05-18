@@ -12,6 +12,9 @@ pub enum LexError {
     #[error("unterminated string literal starting at {span:?}")]
     UnterminatedString { span: Span },
 
+    #[error("invalid escape sequence in string literal at {span:?}")]
+    InvalidEscape { span: Span },
+
     #[error("invalid numeric literal at {span:?}")]
     InvalidNumber { span: Span },
 
