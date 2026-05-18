@@ -1,0 +1,18 @@
+[package]
+name        = "valua-parser"
+description = "Recursive-descent Lua 5.4 parser for the valua transpiler"
+edition.workspace     = true
+version.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+rust-version.workspace = true
+
+[dependencies]
+valua-diagnostics = { workspace = true }
+valua-ast         = { workspace = true }
+valua-lexer       = { workspace = true }
+thiserror         = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+insta             = { workspace = true }
