@@ -1,0 +1,18 @@
+[package]
+name        = "valua-ast"
+description = "Lua 5.4 AST node definitions shared across the valua pipeline"
+edition.workspace     = true
+version.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+rust-version.workspace = true
+
+[features]
+serde = ["dep:serde", "valua-diagnostics/serde"]
+
+[dependencies]
+valua-diagnostics = { workspace = true }
+serde             = { workspace = true, optional = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
