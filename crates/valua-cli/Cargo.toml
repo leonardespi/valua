@@ -1,6 +1,6 @@
 [package]
 name        = "valua-cli"
-description = "Command-line interface for the valua Lua 5.4 → 5.1 transpiler"
+description = "Command-line interface for the valua Lua 5.5 → 5.1 transpiler"
 edition.workspace     = true
 version.workspace     = true
 authors.workspace     = true
@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 valua-core         = { workspace = true }
 valua-diagnostics  = { workspace = true }
+valua-lint         = { workspace = true }
 anyhow             = { workspace = true }
 clap               = { workspace = true }
 tracing            = { workspace = true }

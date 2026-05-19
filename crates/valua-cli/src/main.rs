@@ -3,8 +3,10 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use tracing::info;
 use valua_core::{CompileOptions, Compiler, Target};
+use valua_diagnostics::{ConsoleReporter, Reporter};
+use valua_lint::LintPipeline;
 
-/// valua — Lua 5.4 → 5.1 / LuaJIT transpiler.
+/// valua — Lua 5.5 → 5.1 / LuaJIT transpiler.
 #[derive(Debug, Parser)]
 #[command(name = "valua", version, about, long_about = None)]
 struct Cli {
@@ -14,9 +16,9 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Transpile a Lua 5.4 source file to Lua 5.1 or LuaJIT.
+    /// Transpile a Lua 5.5 source file to Lua 5.1 or LuaJIT.
     Build {
-        /// Input Lua 5.4 source file.
+        /// Input Lua 5.5 source file.
         input: PathBuf,
 
         /// Output file path (defaults to stdout when omitted).
@@ -28,10 +30,20 @@ enum Command {
         target: TargetArg,
     },
 
-    /// Validate a Lua 5.4 source file without producing output.
+    /// Validate a Lua 5.5 source file without producing output.
     Check {
-        /// Input Lua 5.4 source file.
+        /// Input Lua 5.5 source file.
         input: PathBuf,
+    },
+
+    /// Run static analysis on a Lua 5.5 source file.
+    Lint {
+        /// Input Lua 5.5 source file.
+        input: PathBuf,
+
+        /// Target Lua runtime for target-specific checks.
+        #[arg(long, default_value = "luajit")]
+        target: TargetArg,
     },
 
     /// Print version information.
@@ -62,8 +74,13 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Build { input, output, target } => cmd_build(input, output, target),
+        Command::Build {
+            input,
+            output,
+            target,
+        } => cmd_build(input, output, target),
         Command::Check { input } => cmd_check(input),
+        Command::Lint { input, target } => cmd_lint(input, target),
         Command::Version => cmd_version(),
     }
 }
@@ -93,6 +110,30 @@ fn cmd_check(input: PathBuf) -> Result<()> {
     // TODO: call Compiler::parse_only and report diagnostics
     let _block = Compiler::parse_only(&source);
     todo!("report diagnostics and exit with appropriate code")
+}
+
+fn cmd_lint(input: PathBuf, target: TargetArg) -> Result<()> {
+    let source = std::fs::read_to_string(&input)
+        .with_context(|| format!("failed to read '{}'", input.display()))?;
+
+    info!(input = %input.display(), target = ?target, "linting");
+
+    let block = Compiler::parse_only(&source)
+        .with_context(|| format!("parse failed: '{}'", input.display()))?;
+
+    let pipeline = LintPipeline::default_for(target.into());
+    let diags = pipeline.run(&block);
+
+    let filename = input.to_string_lossy();
+    let mut reporter = ConsoleReporter::stderr();
+    for diag in &diags {
+        reporter.report(diag, &source, &filename);
+    }
+
+    if reporter.has_errors() {
+        std::process::exit(1);
+    }
+    Ok(())
 }
 
 fn cmd_version() -> Result<()> {
