@@ -1,9 +1,20 @@
 //! Embedded Lua polyfill strings injected during Lua 5.5 → 5.1 transpilation.
 
-/// Bitwise operation emulation via LuaJIT `bit` / `bit32` fallback table.
+/// Bitwise operation emulation for pure Lua 5.1 (no native bit library).
 ///
 /// Covers: `band`, `bor`, `bxor`, `bnot`, `lshift`, `rshift`.
-pub const BITWISE_FALLBACK: &str = "";
+/// Semantics match LuaJIT's `bit` library: 32-bit signed integer domain.
+pub const BITWISE_FALLBACK: &str = r#"local _bU=0x100000000
+local _bS=0x80000000
+local function _bu(n) n=math.floor(n)%_bU if n<0 then n=n+_bU end return n end
+local function _bs(n) n=_bu(n) if n>=_bS then n=n-_bU end return n end
+local bit={}
+function bit.band(a,b) a=_bu(a) b=_bu(b) local r=0 local m=1 while a>0 or b>0 do if a%2==1 and b%2==1 then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return _bs(r) end
+function bit.bor(a,b) a=_bu(a) b=_bu(b) local r=0 local m=1 while a>0 or b>0 do if a%2==1 or b%2==1 then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return _bs(r) end
+function bit.bxor(a,b) a=_bu(a) b=_bu(b) local r=0 local m=1 while a>0 or b>0 do if a%2~=b%2 then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return _bs(r) end
+function bit.bnot(a) return _bs(0xFFFFFFFF-_bu(a)) end
+function bit.lshift(a,n) n=n%32 a=_bu(a) for _=1,n do a=(a*2)%_bU end return _bs(a) end
+function bit.rshift(a,n) n=n%32 a=_bu(a) for _=1,n do a=math.floor(a/2) end return _bs(a) end"#;
 
 /// Runtime helper for `<close>` attribute semantics (deferred cleanup via pcall).
 pub const CLOSE_RUNTIME: &str = "";
@@ -111,10 +122,19 @@ mod tests {
     }
 
     #[test]
-    fn test_polyfills_for_empty_strings_returns_empty() {
-        // All polyfill constants are "" until Phase 3; result must still be "".
+    fn test_polyfills_for_bitwise_returns_nonempty() {
+        // BITWISE_FALLBACK is now filled (Phase 3); bitwise_ops must produce output.
         let fs = FeatureSet {
             bitwise_ops: true,
+            ..Default::default()
+        };
+        assert!(!polyfills_for(&fs).is_empty());
+    }
+
+    #[test]
+    fn test_polyfills_for_close_only_still_empty() {
+        // CLOSE_RUNTIME is still "" until Phase 4.
+        let fs = FeatureSet {
             close_attribute: true,
             ..Default::default()
         };

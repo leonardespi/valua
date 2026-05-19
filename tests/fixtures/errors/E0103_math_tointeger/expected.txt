@@ -1,0 +1,10 @@
+-- CONJECTURE: no runtime available; exact column numbers unverified; see CONJECTURE_REGISTER.md
+error[E0103]: math.tointeger observes the integer/float distinction absent in LuaJIT
+  --> input.lua:5:11
+   |
+5  | local n = math.tointeger(x)
+   |           ^^^^^^^^^^^^^^^^
+   |
+   = note: math.tointeger returns the integer representation of a float or nil if the value is not exactly representable as an integer; this integer/float distinction does not exist in LuaJIT
+   = help: Replace with math.floor() if truncation is intended, or restructure to avoid integer/float discrimination
+   = see:  PRD §5.2
