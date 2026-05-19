@@ -2,5 +2,5 @@
 -- Evidence: EVIDENCE.md §"Probe 1.3" — WARNING: bit.lshift wraps for shifts>=32 (bit.lshift(1,32)=1); fixture avoids this domain
 
 local a = bit.lshift(1, 4)
-local b = bit.lshift(0x01, 8)
+local b = bit.lshift(1, 8)
 return a, b

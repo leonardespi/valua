@@ -764,7 +764,6 @@ dependencies = [
  "pretty_assertions",
  "thiserror",
  "valua-ast",
- "valua-codegen",
  "valua-diagnostics",
  "valua-parser",
 ]

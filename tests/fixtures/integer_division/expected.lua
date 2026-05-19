@@ -2,6 +2,6 @@
 -- Evidence: EVIDENCE.md §"Probe 1.3"
 
 local a = math.floor(7 / 2)
-local b = math.floor(-7 / 2)
+local b = math.floor(- 7 / 2)
 local c = math.floor(10 / 3)
 return a, b, c

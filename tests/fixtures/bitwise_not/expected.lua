@@ -2,5 +2,5 @@
 -- Evidence: EVIDENCE.md §"Probe 1.3" — bit.bnot operates in 32-bit signed domain; differs from Lua 5.5 64-bit ~x for values > 2^31
 
 local a = bit.bnot(0)
-local b = bit.bnot(0xFF)
+local b = bit.bnot(255)
 return a, b

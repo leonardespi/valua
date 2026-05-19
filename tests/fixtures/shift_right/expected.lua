@@ -2,5 +2,5 @@
 -- Evidence: EVIDENCE.md §"Probe 1.3" — >> maps to bit.rshift (logical); use bit.arshift for arithmetic right shift
 
 local a = bit.rshift(256, 2)
-local b = bit.rshift(0xFF00, 8)
+local b = bit.rshift(65280, 8)
 return a, b

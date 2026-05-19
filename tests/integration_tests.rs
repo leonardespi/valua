@@ -136,6 +136,45 @@ fn read_file(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_else(|_| panic!("cannot read {}", path.display()))
 }
 
+// ── Decimal-emission helpers ──────────────────────────────────────────────────
+
+/// Returns true if `line` contains a non-decimal integer literal (`0x…` / `0b…`)
+/// outside of a Lua line comment. Conservative: also fires inside string literals,
+/// which is acceptable — fixture expected files must not contain hex string content.
+fn has_non_decimal_int_literal(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    if trimmed.starts_with("--") {
+        return false;
+    }
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    while i + 1 < bytes.len() {
+        if bytes[i] == b'0'
+            && matches!(bytes[i + 1], b'x' | b'X' | b'b' | b'B')
+            && (i == 0 || !bytes[i - 1].is_ascii_alphanumeric())
+        {
+            return true;
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Returns the leading VERIFIED/INFERRED/CONJECTURE/Evidence tag comment lines.
+fn extract_header_lines(content: &str) -> Vec<String> {
+    content
+        .lines()
+        .take_while(|l| {
+            let t = l.trim_start();
+            t.starts_with("-- VERIFIED:")
+                || t.starts_with("-- INFERRED:")
+                || t.starts_with("-- CONJECTURE:")
+                || t.starts_with("-- Evidence:")
+        })
+        .map(|s| s.to_string())
+        .collect()
+}
+
 // ── Meta-tests ────────────────────────────────────────────────────────────────
 
 #[test]
@@ -157,10 +196,85 @@ fn meta_error_fixtures_have_valid_codes() {
     }
 }
 
+#[test]
+fn meta_no_hex_in_success_fixture_expected_files() {
+    let mut violations: Vec<String> = Vec::new();
+    for (name, path) in discover_success_fixtures() {
+        let expected_path = path.join("expected.lua");
+        let content = read_file(&expected_path);
+        for (line_no, line) in content.lines().enumerate() {
+            if has_non_decimal_int_literal(line) {
+                violations.push(format!("{}:{}: {}", name, line_no + 1, line.trim()));
+            }
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "Decimal emission contract violated in expected.lua files:\n{}",
+        violations.join("\n")
+    );
+}
+
+#[test]
+#[ignore = "snapshot regen: run with UPDATE_FIXTURES=1 cargo test update_all_fixtures -- --ignored"]
+fn update_all_fixtures() {
+    assert_eq!(
+        std::env::var("UPDATE_FIXTURES").unwrap_or_default(),
+        "1",
+        "Set UPDATE_FIXTURES=1 to run this test"
+    );
+
+    let mut changed: Vec<String> = Vec::new();
+    let mut failed: Vec<String> = Vec::new();
+
+    for (name, path) in discover_success_fixtures() {
+        let input_path = path.join("input.lua");
+        let expected_path = path.join("expected.lua");
+        let input = read_file(&input_path);
+        let existing = fs::read_to_string(&expected_path).unwrap_or_default();
+        let headers = extract_header_lines(&existing);
+
+        match Compiler::compile(&input, CompileOptions::luajit()) {
+            Ok(output) => {
+                let mut new_content = String::new();
+                for h in &headers {
+                    new_content.push_str(h);
+                    new_content.push('\n');
+                }
+                if !headers.is_empty() {
+                    new_content.push('\n');
+                }
+                new_content.push_str(&output);
+                if new_content != existing {
+                    fs::write(&expected_path, &new_content).unwrap_or_else(|e| {
+                        panic!("cannot write {}: {}", expected_path.display(), e)
+                    });
+                    changed.push(name);
+                }
+            }
+            Err(e) => failed.push(format!("{}: {}", name, e)),
+        }
+    }
+
+    if changed.is_empty() {
+        println!("All fixtures up to date.");
+    } else {
+        println!("Updated {} fixture(s):", changed.len());
+        for f in &changed {
+            println!("  - {}", f);
+        }
+    }
+
+    assert!(
+        failed.is_empty(),
+        "Fixtures failed to compile during regeneration:\n{}",
+        failed.join("\n")
+    );
+}
+
 // ── Success fixture tests ─────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_bitwise_and() {
     let root = Path::new(FIXTURE_ROOT).join("bitwise_and");
     let input = read_file(&root.join("input.lua"));
@@ -170,7 +284,6 @@ fn fixture_bitwise_and() {
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_bitwise_or() {
     let root = Path::new(FIXTURE_ROOT).join("bitwise_or");
     let input = read_file(&root.join("input.lua"));
@@ -180,7 +293,6 @@ fn fixture_bitwise_or() {
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_bitwise_xor() {
     let root = Path::new(FIXTURE_ROOT).join("bitwise_xor");
     let input = read_file(&root.join("input.lua"));
@@ -190,7 +302,6 @@ fn fixture_bitwise_xor() {
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_bitwise_not() {
     let root = Path::new(FIXTURE_ROOT).join("bitwise_not");
     let input = read_file(&root.join("input.lua"));
@@ -200,7 +311,6 @@ fn fixture_bitwise_not() {
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_shift_left() {
     let root = Path::new(FIXTURE_ROOT).join("shift_left");
     let input = read_file(&root.join("input.lua"));
@@ -210,7 +320,6 @@ fn fixture_shift_left() {
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_shift_right() {
     let root = Path::new(FIXTURE_ROOT).join("shift_right");
     let input = read_file(&root.join("input.lua"));
@@ -220,7 +329,6 @@ fn fixture_shift_right() {
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_integer_division() {
     let root = Path::new(FIXTURE_ROOT).join("integer_division");
     let input = read_file(&root.join("input.lua"));
@@ -230,7 +338,6 @@ fn fixture_integer_division() {
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_const_attribute() {
     let root = Path::new(FIXTURE_ROOT).join("const_attribute");
     let input = read_file(&root.join("input.lua"));
@@ -240,7 +347,6 @@ fn fixture_const_attribute() {
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_close_attribute_simple() {
     let root = Path::new(FIXTURE_ROOT).join("close_attribute_simple");
     let input = read_file(&root.join("input.lua"));
@@ -250,7 +356,6 @@ fn fixture_close_attribute_simple() {
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_close_attribute_error_path() {
     let root = Path::new(FIXTURE_ROOT).join("close_attribute_error_path");
     let input = read_file(&root.join("input.lua"));
@@ -260,6 +365,17 @@ fn fixture_close_attribute_error_path() {
 }
 
 // ── Error fixture tests ───────────────────────────────────────────────────────
+
+#[test]
+fn fixture_e0103_math_tointeger() {
+    let root = Path::new(FIXTURE_ROOT)
+        .join("errors")
+        .join("E0103_math_tointeger");
+    let input = read_file(&root.join("input.lua"));
+    let result = Compiler::compile(&input, CompileOptions::luajit());
+    assert!(result.is_err(), "expected E0103 compile error");
+    // TODO(Phase 5, M16): render diagnostic and compare against expected.txt
+}
 
 #[test]
 fn fixture_e0101_math_type() {
