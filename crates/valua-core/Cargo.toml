@@ -11,6 +11,7 @@ rust-version.workspace = true
 valua-diagnostics = { workspace = true }
 valua-ast         = { workspace = true }
 valua-lexer       = { workspace = true }
+valua-lint        = { workspace = true }
 valua-parser      = { workspace = true }
 valua-transformer = { workspace = true }
 valua-codegen     = { workspace = true }

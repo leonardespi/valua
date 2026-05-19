@@ -63,12 +63,13 @@ fn discover_error_fixtures() -> Vec<(String, String, PathBuf)> {
             .and_then(|s| s.to_str())
             .map(String::from)
             .expect("UTF-8 name");
-        let code = name.split('_').next().map(String::from).expect("code prefix");
+        let code = name
+            .split('_')
+            .next()
+            .map(String::from)
+            .expect("code prefix");
         if !is_valid_error_code(&code) {
-            panic!(
-                "error fixture {} has invalid code prefix `{}`",
-                name, code
-            );
+            panic!("error fixture {} has invalid code prefix `{}`", name, code);
         }
         let input = path.join("input.lua");
         let expected = path.join("expected.txt");
@@ -132,8 +133,7 @@ fn normalize(s: &str) -> String {
 }
 
 fn read_file(path: &Path) -> String {
-    fs::read_to_string(path)
-        .unwrap_or_else(|_| panic!("cannot read {}", path.display()))
+    fs::read_to_string(path).unwrap_or_else(|_| panic!("cannot read {}", path.display()))
 }
 
 // ── Meta-tests ────────────────────────────────────────────────────────────────
@@ -262,17 +262,17 @@ fn fixture_close_attribute_error_path() {
 // ── Error fixture tests ───────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_e0101_math_type() {
-    let root = Path::new(FIXTURE_ROOT).join("errors").join("E0101_math_type");
+    let root = Path::new(FIXTURE_ROOT)
+        .join("errors")
+        .join("E0101_math_type");
     let input = read_file(&root.join("input.lua"));
     let result = Compiler::compile(&input, CompileOptions::luajit());
     assert!(result.is_err(), "expected E0101 compile error");
-    // TODO: render diagnostic via ConsoleReporter and compare against expected.txt
+    // TODO(Phase 5, M16): render diagnostic and compare against expected.txt
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_e0102_integer_overflow() {
     let root = Path::new(FIXTURE_ROOT)
         .join("errors")
@@ -280,11 +280,10 @@ fn fixture_e0102_integer_overflow() {
     let input = read_file(&root.join("input.lua"));
     let result = Compiler::compile(&input, CompileOptions::luajit());
     assert!(result.is_err(), "expected E0102 compile error");
-    // TODO: render diagnostic via ConsoleReporter and compare against expected.txt
+    // TODO(Phase 5, M16): render diagnostic and compare against expected.txt
 }
 
 #[test]
-#[ignore = "Compiler::compile not yet implemented"]
 fn fixture_e0301_const_mutation() {
     let root = Path::new(FIXTURE_ROOT)
         .join("errors")
@@ -292,7 +291,7 @@ fn fixture_e0301_const_mutation() {
     let input = read_file(&root.join("input.lua"));
     let result = Compiler::compile(&input, CompileOptions::luajit());
     assert!(result.is_err(), "expected E0301 compile error");
-    // TODO: render diagnostic via ConsoleReporter and compare against expected.txt
+    // TODO(Phase 5, M16): render diagnostic and compare against expected.txt
 }
 
 #[test]

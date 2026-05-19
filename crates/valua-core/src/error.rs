@@ -2,6 +2,7 @@
 
 use thiserror::Error;
 use valua_codegen::CodeGenError;
+use valua_diagnostics::Diagnostic;
 use valua_parser::ParseError;
 use valua_transformer::TransformError;
 
@@ -10,6 +11,9 @@ use valua_transformer::TransformError;
 pub enum CompileError {
     #[error("parse error: {0}")]
     Parse(#[from] ParseError),
+
+    #[error("{} lint error(s) found", .0.len())]
+    Lint(Vec<Diagnostic>),
 
     #[error("transform error: {0}")]
     Transform(#[from] TransformError),

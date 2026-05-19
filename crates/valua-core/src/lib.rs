@@ -38,7 +38,14 @@ impl Default for CompileOptions {
 impl CompileOptions {
     /// Convenience builder targeting LuaJIT.
     pub fn luajit() -> Self {
-        Self { target: LuaTarget::LuaJIT, emit: EmitOptions { target: LuaTarget::LuaJIT, ..EmitOptions::default() }, ..Self::default() }
+        Self {
+            target: LuaTarget::LuaJIT,
+            emit: EmitOptions {
+                target: LuaTarget::LuaJIT,
+                ..EmitOptions::default()
+            },
+            ..Self::default()
+        }
     }
 }
 
@@ -48,25 +55,39 @@ impl CompileOptions {
 pub struct Compiler;
 
 impl Compiler {
-    /// Transpile `source` (Lua 5.4) to Lua 5.1 using `opts`.
+    /// Transpile `source` (Lua 5.5) to Lua 5.1 using `opts`.
+    ///
+    /// Runs: parse → lint (abort on any Error-severity diagnostic) → transform → emit.
+    /// Transform and emit are not yet implemented (Phase 3).
     ///
     /// # Errors
-    /// Returns `CompileError` on any lex, parse, transform, or codegen failure.
-    pub fn compile(_source: &str, _opts: CompileOptions) -> Result<String, CompileError> {
-        // TODO: 1. lex via valua_lexer::Lexer
-        // TODO: 2. parse via valua_parser::parse
-        // TODO: 3. build and run default_pipeline (or custom) via valua_transformer
-        // TODO: 4. emit via LuaEmitter::new(_opts.emit).emit(&block)
-        todo!("drive lex → parse → transform → codegen pipeline")
+    /// Returns `CompileError` on any parse, lint, transform, or codegen failure.
+    pub fn compile(source: &str, opts: CompileOptions) -> Result<String, CompileError> {
+        use valua_diagnostics::Severity;
+        use valua_lint::LintPipeline;
+
+        let block = valua_parser::parse(source)?;
+
+        let pipeline = LintPipeline::default_for(opts.target);
+        let diags = pipeline.run(&block);
+        let errors: Vec<_> = diags
+            .into_iter()
+            .filter(|d| d.severity == Severity::Error)
+            .collect();
+        if !errors.is_empty() {
+            return Err(CompileError::Lint(errors));
+        }
+
+        // TODO(Phase 3): transform and emit
+        todo!("transform and emit pipeline — implement in Phase 3")
     }
 
-    /// Parse only — useful for syntax checking without transformation.
+    /// Parse `source` and return the AST without running any analysis or transformation.
     ///
     /// # Errors
     /// Returns `CompileError::Parse` on any lex or parse failure.
-    pub fn parse_only(_source: &str) -> Result<Block, CompileError> {
-        // TODO: lex + parse, return Block without transforming
-        todo!("lex and parse without transformation")
+    pub fn parse_only(source: &str) -> Result<Block, CompileError> {
+        valua_parser::parse(source).map_err(CompileError::Parse)
     }
 }
 
