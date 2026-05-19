@@ -1,0 +1,18 @@
+[package]
+name        = "valua-lint"
+description = "Static analysis lints for the valua transpiler. Public crate; stable from 1.0."
+edition.workspace     = true
+version.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+rust-version.workspace = true
+
+[dependencies]
+valua-ast         = { workspace = true }
+valua-diagnostics = { workspace = true }
+valua-codegen     = { workspace = true }
+thiserror         = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+valua-parser      = { workspace = true }

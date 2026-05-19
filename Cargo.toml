@@ -5,6 +5,7 @@ members = [
     "crates/valua-lexer",
     "crates/valua-parser",
     "crates/valua-ast",
+    "crates/valua-lint",
     "crates/valua-transformer",
     "crates/valua-codegen",
     "crates/valua-diagnostics",
@@ -38,6 +39,7 @@ rust-version = "1.75"
 valua-ast         = { path = "crates/valua-ast" }
 valua-core        = { path = "crates/valua-core" }
 valua-lexer       = { path = "crates/valua-lexer" }
+valua-lint        = { path = "crates/valua-lint" }
 valua-parser      = { path = "crates/valua-parser" }
 valua-transformer = { path = "crates/valua-transformer" }
 valua-codegen     = { path = "crates/valua-codegen" }

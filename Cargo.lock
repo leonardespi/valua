@@ -705,6 +705,7 @@ dependencies = [
  "tracing-subscriber",
  "valua-core",
  "valua-diagnostics",
+ "valua-lint",
 ]
 
 [[package]]
@@ -729,6 +730,7 @@ dependencies = [
  "valua-codegen",
  "valua-diagnostics",
  "valua-lexer",
+ "valua-lint",
  "valua-parser",
  "valua-polyfills",
  "valua-transformer",
@@ -753,6 +755,18 @@ dependencies = [
  "pretty_assertions",
  "thiserror",
  "valua-diagnostics",
+]
+
+[[package]]
+name = "valua-lint"
+version = "0.1.0"
+dependencies = [
+ "pretty_assertions",
+ "thiserror",
+ "valua-ast",
+ "valua-codegen",
+ "valua-diagnostics",
+ "valua-parser",
 ]
 
 [[package]]
@@ -783,6 +797,7 @@ dependencies = [
  "thiserror",
  "valua-ast",
  "valua-diagnostics",
+ "valua-parser",
  "valua-polyfills",
 ]
 
