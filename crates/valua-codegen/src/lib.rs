@@ -66,12 +66,18 @@ impl LuaEmitter {
 
     /// Create an emitter with default options targeting Lua 5.1.
     pub fn lua51() -> Self {
-        Self::new(EmitOptions { target: LuaTarget::Lua51, ..EmitOptions::default() })
+        Self::new(EmitOptions {
+            target: LuaTarget::Lua51,
+            ..EmitOptions::default()
+        })
     }
 
     /// Create an emitter with default options targeting LuaJIT.
     pub fn luajit() -> Self {
-        Self::new(EmitOptions { target: LuaTarget::LuaJIT, ..EmitOptions::default() })
+        Self::new(EmitOptions {
+            target: LuaTarget::LuaJIT,
+            ..EmitOptions::default()
+        })
     }
 }
 
@@ -94,7 +100,11 @@ pub(crate) struct EmitContext<'opts> {
 
 impl<'opts> EmitContext<'opts> {
     pub(crate) fn new(options: &'opts EmitOptions) -> Self {
-        Self { options, buf: String::new(), depth: 0 }
+        Self {
+            options,
+            buf: String::new(),
+            depth: 0,
+        }
     }
 
     pub(crate) fn finish(self) -> String {

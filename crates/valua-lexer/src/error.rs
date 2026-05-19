@@ -3,7 +3,7 @@
 use thiserror::Error;
 use valua_diagnostics::Span;
 
-/// Errors produced by the Lua 5.4 lexer.
+/// Errors produced by the Lua 5.5 lexer.
 #[derive(Debug, Error)]
 pub enum LexError {
     #[error("unexpected character '{ch}' at {span:?}")]

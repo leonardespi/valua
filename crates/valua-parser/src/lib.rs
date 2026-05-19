@@ -32,11 +32,17 @@ impl Parser {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     fn peek(&self) -> &Token {
-        self.tokens.get(self.pos).map(|st| &st.token).unwrap_or(&Token::Eof)
+        self.tokens
+            .get(self.pos)
+            .map(|st| &st.token)
+            .unwrap_or(&Token::Eof)
     }
 
     fn peek_span(&self) -> Span {
-        self.tokens.get(self.pos).map(|st| st.span).unwrap_or(Span::dummy())
+        self.tokens
+            .get(self.pos)
+            .map(|st| st.span)
+            .unwrap_or(Span::dummy())
     }
 
     fn advance(&mut self) -> &SpannedToken {
@@ -151,7 +157,10 @@ impl Parser {
                 self.advance();
                 let body = self.parse_block()?;
                 let e = self.expect(&Token::End)?;
-                Ok(Statement::Do(Do { body, span: s.merge(e) }))
+                Ok(Statement::Do(Do {
+                    body,
+                    span: s.merge(e),
+                }))
             }
             Token::While => {
                 let s = self.peek_span();
@@ -160,7 +169,11 @@ impl Parser {
                 self.expect(&Token::Do)?;
                 let body = self.parse_block()?;
                 let e = self.expect(&Token::End)?;
-                Ok(Statement::While(While { condition, body, span: s.merge(e) }))
+                Ok(Statement::While(While {
+                    condition,
+                    body,
+                    span: s.merge(e),
+                }))
             }
             Token::Repeat => {
                 let s = self.peek_span();
@@ -169,7 +182,11 @@ impl Parser {
                 self.expect(&Token::Until)?;
                 let condition = Box::new(self.parse_expression(0)?);
                 let e = condition.span();
-                Ok(Statement::Repeat(Repeat { body, condition, span: s.merge(e) }))
+                Ok(Statement::Repeat(Repeat {
+                    body,
+                    condition,
+                    span: s.merge(e),
+                }))
             }
             Token::If => {
                 let stmt = self.parse_if()?;
@@ -183,14 +200,20 @@ impl Parser {
                 let s = self.peek_span();
                 self.advance();
                 let (label, e) = self.expect_ident()?;
-                Ok(Statement::Goto(Goto { label, span: s.merge(e) }))
+                Ok(Statement::Goto(Goto {
+                    label,
+                    span: s.merge(e),
+                }))
             }
             Token::DblColon => {
                 let s = self.peek_span();
                 self.advance();
                 let (name, _) = self.expect_ident()?;
                 let e = self.expect(&Token::DblColon)?;
-                Ok(Statement::Label(Label { name, span: s.merge(e) }))
+                Ok(Statement::Label(Label {
+                    name,
+                    span: s.merge(e),
+                }))
             }
             Token::Break => {
                 let s = self.peek_span();
@@ -206,7 +229,11 @@ impl Parser {
         loop {
             let (name, name_span) = self.expect_ident()?;
             let attribute = self.parse_attribute()?;
-            names.push(LocalName { name, attribute, span: name_span });
+            names.push(LocalName {
+                name,
+                attribute,
+                span: name_span,
+            });
             if self.consume_if(&Token::Comma).is_none() {
                 break;
             }
@@ -216,7 +243,11 @@ impl Parser {
             values = self.parse_expr_list()?;
         }
         let end_span = values.last().map(|e| e.span()).unwrap_or(start);
-        Ok(LocalDecl { names, values, span: start.merge(end_span) })
+        Ok(LocalDecl {
+            names,
+            values,
+            span: start.merge(end_span),
+        })
     }
 
     fn parse_attribute(&mut self) -> Result<Option<Attribute>, ParseError> {
@@ -239,10 +270,7 @@ impl Parser {
         Ok(Some(attr))
     }
 
-    fn parse_local_function_body(
-        &mut self,
-        start: Span,
-    ) -> Result<LocalFunctionDecl, ParseError> {
+    fn parse_local_function_body(&mut self, start: Span) -> Result<LocalFunctionDecl, ParseError> {
         let (name, _) = self.expect_ident()?;
         let func = self.parse_function_body()?;
         let span = start.merge(func.span);
@@ -272,7 +300,11 @@ impl Parser {
         } else {
             None
         };
-        Ok(FunctionName { parts, method, span: start.merge(end) })
+        Ok(FunctionName {
+            parts,
+            method,
+            span: start.merge(end),
+        })
     }
 
     fn parse_function_body(&mut self) -> Result<FunctionBody, ParseError> {
@@ -281,7 +313,12 @@ impl Parser {
         self.expect(&Token::RParen)?;
         let body = self.parse_block()?;
         let e = self.expect(&Token::End)?;
-        Ok(FunctionBody { params, is_vararg, body, span: s.merge(e) })
+        Ok(FunctionBody {
+            params,
+            is_vararg,
+            body,
+            span: s.merge(e),
+        })
     }
 
     fn parse_param_list(&mut self) -> Result<(Vec<Param>, bool), ParseError> {
@@ -324,7 +361,11 @@ impl Parser {
                 self.expect(&Token::Then)?;
                 let body = self.parse_block()?;
                 let span = es.merge(body.span);
-                elseif_clauses.push(ElseIf { condition: cond, body, span });
+                elseif_clauses.push(ElseIf {
+                    condition: cond,
+                    body,
+                    span,
+                });
             } else if self.consume_if(&Token::Else).is_some() {
                 else_block = Some(self.parse_block()?);
                 break;
@@ -333,7 +374,13 @@ impl Parser {
             }
         }
         let e = self.expect(&Token::End)?;
-        Ok(If { condition, then_block, elseif_clauses, else_block, span: s.merge(e) })
+        Ok(If {
+            condition,
+            then_block,
+            elseif_clauses,
+            else_block,
+            span: s.merge(e),
+        })
     }
 
     fn parse_for_stmt(&mut self) -> Result<Statement, ParseError> {
@@ -390,7 +437,10 @@ impl Parser {
             self.parse_expr_list()?
         };
         let end = values.last().map(|e| e.span()).unwrap_or(s);
-        Ok(Return { values, span: s.merge(end) })
+        Ok(Return {
+            values,
+            span: s.merge(end),
+        })
     }
 
     fn parse_assign_or_call(&mut self) -> Result<Statement, ParseError> {
@@ -437,10 +487,7 @@ impl Parser {
     fn parse_expression(&mut self, min_prec: u8) -> Result<Expression, ParseError> {
         let mut lhs = self.parse_unary_expression()?;
 
-        loop {
-            let Some((op, (left_bp, right_bp))) = self.peek_binary_op() else {
-                break;
-            };
+        while let Some((op, (left_bp, right_bp))) = self.peek_binary_op() {
             if left_bp < min_prec {
                 break;
             }
@@ -643,7 +690,10 @@ impl Parser {
             }
         }
         let e = self.expect(&Token::RBrace)?;
-        Ok(TableConstructor { fields, span: s.merge(e) })
+        Ok(TableConstructor {
+            fields,
+            span: s.merge(e),
+        })
     }
 
     fn parse_table_field(&mut self) -> Result<TableField, ParseError> {
@@ -656,7 +706,11 @@ impl Parser {
                 self.expect(&Token::Assign)?;
                 let value = Box::new(self.parse_expression(0)?);
                 let span = s.merge(value.span());
-                Ok(TableField::ExprKey { key: Box::new(key), value, span })
+                Ok(TableField::ExprKey {
+                    key: Box::new(key),
+                    value,
+                    span,
+                })
             }
             Token::Ident(name) if self.is_name_assign_field() => {
                 let s = self.peek_span();
@@ -664,7 +718,11 @@ impl Parser {
                 self.advance(); // `=`
                 let value = Box::new(self.parse_expression(0)?);
                 let span = s.merge(value.span());
-                Ok(TableField::NameKey { key: name, value, span })
+                Ok(TableField::NameKey {
+                    key: name,
+                    value,
+                    span,
+                })
             }
             _ => Ok(TableField::Positional(self.parse_expression(0)?)),
         }
@@ -692,12 +750,9 @@ fn binary_prec(op: BinaryOp) -> (u8, u8) {
     match op {
         BinaryOp::Or => (1, 2),
         BinaryOp::And => (3, 4),
-        BinaryOp::Lt
-        | BinaryOp::Gt
-        | BinaryOp::Le
-        | BinaryOp::Ge
-        | BinaryOp::Eq
-        | BinaryOp::Ne => (5, 6),
+        BinaryOp::Lt | BinaryOp::Gt | BinaryOp::Le | BinaryOp::Ge | BinaryOp::Eq | BinaryOp::Ne => {
+            (5, 6)
+        }
         BinaryOp::BitwiseOr => (7, 8),
         BinaryOp::BitwiseXor => (9, 10),
         BinaryOp::BitwiseAnd => (11, 12),
@@ -728,9 +783,14 @@ fn adjust_span(expr: Expression, span: Span) -> Expression {
         // Call: update the named span field inside the Call enum.
         Expression::Call(call) => Expression::Call(match call {
             Call::Call { func, args, .. } => Call::Call { func, args, span },
-            Call::MethodCall { obj, method, args, .. } => {
-                Call::MethodCall { obj, method, args, span }
-            }
+            Call::MethodCall {
+                obj, method, args, ..
+            } => Call::MethodCall {
+                obj,
+                method,
+                args,
+                span,
+            },
         }),
         // Named-span structs: mutate the span field directly.
         Expression::Function(mut body) => {
@@ -800,19 +860,58 @@ mod tests {
     #[test]
     fn test_parse_all_fixture_inputs() {
         let fixtures = [
-            ("bitwise_and", include_str!("../../../tests/fixtures/bitwise_and/input.lua")),
-            ("bitwise_or", include_str!("../../../tests/fixtures/bitwise_or/input.lua")),
-            ("bitwise_xor", include_str!("../../../tests/fixtures/bitwise_xor/input.lua")),
-            ("bitwise_not", include_str!("../../../tests/fixtures/bitwise_not/input.lua")),
-            ("shift_left", include_str!("../../../tests/fixtures/shift_left/input.lua")),
-            ("shift_right", include_str!("../../../tests/fixtures/shift_right/input.lua")),
-            ("integer_division", include_str!("../../../tests/fixtures/integer_division/input.lua")),
-            ("const_attribute", include_str!("../../../tests/fixtures/const_attribute/input.lua")),
-            ("close_simple", include_str!("../../../tests/fixtures/close_attribute_simple/input.lua")),
-            ("close_error", include_str!("../../../tests/fixtures/close_attribute_error_path/input.lua")),
-            ("E0101", include_str!("../../../tests/fixtures/errors/E0101_math_type/input.lua")),
-            ("E0102", include_str!("../../../tests/fixtures/errors/E0102_integer_overflow/input.lua")),
-            ("E0301", include_str!("../../../tests/fixtures/errors/E0301_const_mutation/input.lua")),
+            (
+                "bitwise_and",
+                include_str!("../../../tests/fixtures/bitwise_and/input.lua"),
+            ),
+            (
+                "bitwise_or",
+                include_str!("../../../tests/fixtures/bitwise_or/input.lua"),
+            ),
+            (
+                "bitwise_xor",
+                include_str!("../../../tests/fixtures/bitwise_xor/input.lua"),
+            ),
+            (
+                "bitwise_not",
+                include_str!("../../../tests/fixtures/bitwise_not/input.lua"),
+            ),
+            (
+                "shift_left",
+                include_str!("../../../tests/fixtures/shift_left/input.lua"),
+            ),
+            (
+                "shift_right",
+                include_str!("../../../tests/fixtures/shift_right/input.lua"),
+            ),
+            (
+                "integer_division",
+                include_str!("../../../tests/fixtures/integer_division/input.lua"),
+            ),
+            (
+                "const_attribute",
+                include_str!("../../../tests/fixtures/const_attribute/input.lua"),
+            ),
+            (
+                "close_simple",
+                include_str!("../../../tests/fixtures/close_attribute_simple/input.lua"),
+            ),
+            (
+                "close_error",
+                include_str!("../../../tests/fixtures/close_attribute_error_path/input.lua"),
+            ),
+            (
+                "E0101",
+                include_str!("../../../tests/fixtures/errors/E0101_math_type/input.lua"),
+            ),
+            (
+                "E0102",
+                include_str!("../../../tests/fixtures/errors/E0102_integer_overflow/input.lua"),
+            ),
+            (
+                "E0301",
+                include_str!("../../../tests/fixtures/errors/E0301_const_mutation/input.lua"),
+            ),
         ];
         for (name, src) in fixtures {
             parse(src).unwrap_or_else(|e| panic!("fixture {name} parse failed: {e}"));
@@ -845,7 +944,10 @@ mod tests {
         let block = parse_ok("local x = (#t)");
         if let Statement::LocalDecl(d) = &block.stmts[0] {
             let expr = &d.values[0];
-            assert!(matches!(expr, Expression::UnOp(UnaryOp::Len, _, _)), "expected UnOp Len");
+            assert!(
+                matches!(expr, Expression::UnOp(UnaryOp::Len, _, _)),
+                "expected UnOp Len"
+            );
             assert_eq!(expr.span().start, 10, "UnOp span should start at `(`");
         } else {
             panic!("expected LocalDecl");

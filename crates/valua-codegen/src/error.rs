@@ -7,7 +7,11 @@ use valua_diagnostics::Span;
 #[derive(Debug, Error)]
 pub enum CodeGenError {
     #[error("AST node at {span:?} cannot be represented in Lua {target}: {detail}")]
-    UnsupportedNode { target: &'static str, detail: String, span: Span },
+    UnsupportedNode {
+        target: &'static str,
+        detail: String,
+        span: Span,
+    },
 
     #[error("internal emitter error: {detail}")]
     Internal { detail: String },

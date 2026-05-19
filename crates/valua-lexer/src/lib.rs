@@ -81,20 +81,13 @@ impl<'src> Lexer<'src> {
                         token::LexErrorKind::UnterminatedString => {
                             LexError::UnterminatedString { span }
                         }
-                        token::LexErrorKind::InvalidEscape => {
-                            LexError::InvalidEscape { span }
-                        }
+                        token::LexErrorKind::InvalidEscape => LexError::InvalidEscape { span },
                         token::LexErrorKind::UnterminatedLongString => {
                             LexError::UnterminatedLongString { span }
                         }
-                        token::LexErrorKind::InvalidNumber => {
-                            LexError::InvalidNumber { span }
-                        }
+                        token::LexErrorKind::InvalidNumber => LexError::InvalidNumber { span },
                         token::LexErrorKind::UnexpectedChar => {
-                            let ch = self.source[range.start..]
-                                .chars()
-                                .next()
-                                .unwrap_or('\0');
+                            let ch = self.source[range.start..].chars().next().unwrap_or('\0');
                             LexError::UnexpectedChar { ch, span }
                         }
                     });
@@ -111,7 +104,7 @@ impl<'src> Lexer<'src> {
         }
 
         let eof_offset = self.source.len();
-        let (eof_line, eof_col) = line_index.line_col(eof_offset.saturating_sub(1).max(0));
+        let (eof_line, eof_col) = line_index.line_col(eof_offset.saturating_sub(1));
         let eof_span = Span::new(eof_offset, eof_offset, eof_line, eof_col);
         tokens.push(SpannedToken::new(Token::Eof, eof_span));
 
@@ -149,7 +142,11 @@ impl<'src> IntoIterator for Lexer<'src> {
 
     fn into_iter(self) -> Self::IntoIter {
         let inner = self.tokenize().unwrap_or_default();
-        TokenIter { inner, pos: 0, source: self.source }
+        TokenIter {
+            inner,
+            pos: 0,
+            source: self.source,
+        }
     }
 }
 
@@ -247,13 +244,19 @@ mod tests {
     #[test]
     fn test_lex_error_unterminated_long_string() {
         let result = Lexer::new("[[hello").tokenize();
-        assert!(matches!(result, Err(LexError::UnterminatedLongString { .. })));
+        assert!(matches!(
+            result,
+            Err(LexError::UnterminatedLongString { .. })
+        ));
     }
 
     #[test]
     fn test_lex_error_unterminated_long_comment() {
         let result = Lexer::new("--[[ unterminated").tokenize();
-        assert!(matches!(result, Err(LexError::UnterminatedLongString { .. })));
+        assert!(matches!(
+            result,
+            Err(LexError::UnterminatedLongString { .. })
+        ));
     }
 
     #[test]

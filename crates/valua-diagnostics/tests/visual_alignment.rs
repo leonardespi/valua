@@ -17,10 +17,22 @@ fn test_console_reporter_visual_alignment() {
     let output = render_diagnostic_to_string(&diagnostic, SOURCE_SINGLE, "test.lua");
 
     // Structural checks
-    assert!(output.contains("error[E0101]:"), "missing error code header\n{output}");
-    assert!(output.contains("test.lua:1:11"), "missing file:line:col\n{output}");
-    assert!(output.contains(SOURCE_SINGLE), "missing source line\n{output}");
-    assert!(output.contains("use a float literal instead"), "missing suggestion\n{output}");
+    assert!(
+        output.contains("error[E0101]:"),
+        "missing error code header\n{output}"
+    );
+    assert!(
+        output.contains("test.lua:1:11"),
+        "missing file:line:col\n{output}"
+    );
+    assert!(
+        output.contains(SOURCE_SINGLE),
+        "missing source line\n{output}"
+    );
+    assert!(
+        output.contains("use a float literal instead"),
+        "missing suggestion\n{output}"
+    );
 
     // Caret column alignment.
     // codespan-reporting uses '│' (U+2502) as gutter separator, not ASCII '|'.
@@ -40,8 +52,7 @@ fn test_console_reporter_visual_alignment() {
     // codespan: after '│', places 1 gutter space + (col-1) source-content spaces = col spaces
     // before the first '^', so the caret visually aligns under the error token.
     assert_eq!(
-        spaces,
-        COL_42 as usize,
+        spaces, COL_42 as usize,
         "caret misaligned: got {spaces} spaces after '│', expected {COL_42}\n{caret_line}"
     );
 }
@@ -62,8 +73,20 @@ fn test_console_reporter_secondary_label_alignment() {
 
     let output = render_diagnostic_to_string(&diagnostic, source, "test.lua");
 
-    assert!(output.contains("error[E0301]:"), "missing error code\n{output}");
-    assert!(output.contains("test.lua:2:1"), "missing mutation site location\n{output}");
-    assert!(output.contains("declared as const here"), "missing secondary label\n{output}");
-    assert!(output.contains("remove the <const> attribute"), "missing suggestion\n{output}");
+    assert!(
+        output.contains("error[E0301]:"),
+        "missing error code\n{output}"
+    );
+    assert!(
+        output.contains("test.lua:2:1"),
+        "missing mutation site location\n{output}"
+    );
+    assert!(
+        output.contains("declared as const here"),
+        "missing secondary label\n{output}"
+    );
+    assert!(
+        output.contains("remove the <const> attribute"),
+        "missing suggestion\n{output}"
+    );
 }

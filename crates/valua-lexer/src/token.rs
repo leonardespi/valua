@@ -53,7 +53,10 @@ fn skip_comment(lex: &mut logos::Lexer<Token>) -> Filter<()> {
 
     // Detect long comment: --[=*[
     if let Some(rest_after_bracket) = remainder.strip_prefix('[') {
-        let level = rest_after_bracket.bytes().take_while(|&b| b == b'=').count();
+        let level = rest_after_bracket
+            .bytes()
+            .take_while(|&b| b == b'=')
+            .count();
         if rest_after_bracket.as_bytes().get(level) == Some(&b'[') {
             let open_consumed = 1 + level + 1; // '[' + '='*level + '['
             let close = format!("]{}]", "=".repeat(level));
@@ -124,8 +127,8 @@ fn scan_quoted_string(lex: &mut logos::Lexer<Token>, quote: char) -> Option<Stri
 
     loop {
         match iter.next() {
-            None => return None,                                // unterminated — kind already set
-            Some((_, '\n')) | Some((_, '\r')) => return None,  // bare newline — kind already set
+            None => return None, // unterminated — kind already set
+            Some((_, '\n')) | Some((_, '\r')) => return None, // bare newline — kind already set
             Some((i, c)) if c == quote => {
                 lex.bump(i + c.len_utf8());
                 return Some(result);
@@ -311,7 +314,7 @@ fn parse_hex_float_str(s: &str) -> Option<f64> {
 
 // ── Token enum ────────────────────────────────────────────────────────────────
 
-/// Every terminal token recognised by the Lua 5.4 grammar.
+/// Every terminal token recognised by the Lua 5.5 grammar (Lua 5.4 is a supported subset).
 #[derive(Logos, Debug, Clone, PartialEq)]
 #[logos(skip r"[ \t\r\n\x0C\x0B]+")]
 #[logos(extras = LexExtras)]
@@ -335,7 +338,10 @@ pub enum Token {
 
     // ── Numeric literals ─────────────────────────────────────────────────────
     // Hex float must precede hex int (longer match wins, but be explicit).
-    #[regex(r"0[xX][0-9a-fA-F]*\.[0-9a-fA-F]+(?:[pP][+-]?[0-9]+)?", parse_hex_float)]
+    #[regex(
+        r"0[xX][0-9a-fA-F]*\.[0-9a-fA-F]+(?:[pP][+-]?[0-9]+)?",
+        parse_hex_float
+    )]
     #[regex(r"0[xX][0-9a-fA-F]+[pP][+-]?[0-9]+", parse_hex_float)]
     // Decimal floats
     #[regex(r"[0-9]+\.[0-9]+(?:[eE][+-]?[0-9]+)?", parse_dec_float)]
@@ -350,28 +356,50 @@ pub enum Token {
 
     // ── Identifiers and keywords ─────────────────────────────────────────────
     // Keywords must be listed before Ident so exact-match takes priority on tie.
-    #[token("and")]   And,
-    #[token("break")] Break,
-    #[token("do")]    Do,
-    #[token("else")]  Else,
-    #[token("elseif")] Elseif,
-    #[token("end")]   End,
-    #[token("false")] False,
-    #[token("for")]   For,
-    #[token("function")] Function,
-    #[token("goto")]  Goto,
-    #[token("if")]    If,
-    #[token("in")]    In,
-    #[token("local")] Local,
-    #[token("nil")]   Nil,
-    #[token("not")]   Not,
-    #[token("or")]    Or,
-    #[token("repeat")] Repeat,
-    #[token("return")] Return,
-    #[token("then")]  Then,
-    #[token("true")]  True,
-    #[token("until")] Until,
-    #[token("while")] While,
+    #[token("and")]
+    And,
+    #[token("break")]
+    Break,
+    #[token("do")]
+    Do,
+    #[token("else")]
+    Else,
+    #[token("elseif")]
+    Elseif,
+    #[token("end")]
+    End,
+    #[token("false")]
+    False,
+    #[token("for")]
+    For,
+    #[token("function")]
+    Function,
+    #[token("goto")]
+    Goto,
+    #[token("if")]
+    If,
+    #[token("in")]
+    In,
+    #[token("local")]
+    Local,
+    #[token("nil")]
+    Nil,
+    #[token("not")]
+    Not,
+    #[token("or")]
+    Or,
+    #[token("repeat")]
+    Repeat,
+    #[token("return")]
+    Return,
+    #[token("then")]
+    Then,
+    #[token("true")]
+    True,
+    #[token("until")]
+    Until,
+    #[token("while")]
+    While,
 
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
     Ident(String),
@@ -381,41 +409,74 @@ pub enum Token {
     AttrClose,
 
     // ── Multi-character operators (longer matches win over single-char) ───────
-    #[token("==")]   Eq,
-    #[token("~=")]   TildeEq,
-    #[token("<=")]   LtEq,
-    #[token(">=")]   GtEq,
-    #[token("<<")]   LtLt,
-    #[token(">>")]   GtGt,
-    #[token("//")] DoubleSlash,
-    #[token("::")] DblColon,
-    #[token("..")] DotDot,
-    #[token("...")] DotDotDot,
+    #[token("==")]
+    Eq,
+    #[token("~=")]
+    TildeEq,
+    #[token("<=")]
+    LtEq,
+    #[token(">=")]
+    GtEq,
+    #[token("<<")]
+    LtLt,
+    #[token(">>")]
+    GtGt,
+    #[token("//")]
+    DoubleSlash,
+    #[token("::")]
+    DblColon,
+    #[token("..")]
+    DotDot,
+    #[token("...")]
+    DotDotDot,
 
     // ── Single-character operators ───────────────────────────────────────────
-    #[token("+")] Plus,
-    #[token("-")] Minus,
-    #[token("*")] Star,
-    #[token("/")] Slash,
-    #[token("%")] Percent,
-    #[token("^")] Caret,
-    #[token("#")] Hash,
-    #[token("&")] Ampersand,
-    #[token("~")] Tilde,
-    #[token("|")] Pipe,
-    #[token("<")] Lt,
-    #[token(">")] Gt,
-    #[token("=")] Assign,
-    #[token("(")] LParen,
-    #[token(")")] RParen,
-    #[token("{")] LBrace,
-    #[token("}")] RBrace,
-    #[token("[")] LBracket,
-    #[token("]")] RBracket,
-    #[token(";")] Semicolon,
-    #[token(":")] Colon,
-    #[token(",")] Comma,
-    #[token(".")] Dot,
+    #[token("+")]
+    Plus,
+    #[token("-")]
+    Minus,
+    #[token("*")]
+    Star,
+    #[token("/")]
+    Slash,
+    #[token("%")]
+    Percent,
+    #[token("^")]
+    Caret,
+    #[token("#")]
+    Hash,
+    #[token("&")]
+    Ampersand,
+    #[token("~")]
+    Tilde,
+    #[token("|")]
+    Pipe,
+    #[token("<")]
+    Lt,
+    #[token(">")]
+    Gt,
+    #[token("=")]
+    Assign,
+    #[token("(")]
+    LParen,
+    #[token(")")]
+    RParen,
+    #[token("{")]
+    LBrace,
+    #[token("}")]
+    RBrace,
+    #[token("[")]
+    LBracket,
+    #[token("]")]
+    RBracket,
+    #[token(";")]
+    Semicolon,
+    #[token(":")]
+    Colon,
+    #[token(",")]
+    Comma,
+    #[token(".")]
+    Dot,
 
     // ── End of file (injected manually, never matched by logos) ─────────────
     Eof,
