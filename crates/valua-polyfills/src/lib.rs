@@ -1,4 +1,4 @@
-//! Embedded Lua polyfill strings injected during Lua 5.4 → 5.1 transpilation.
+//! Embedded Lua polyfill strings injected during Lua 5.5 → 5.1 transpilation.
 
 /// Bitwise operation emulation via LuaJIT `bit` / `bit32` fallback table.
 ///
@@ -8,18 +8,22 @@ pub const BITWISE_FALLBACK: &str = "";
 /// Runtime helper for `<close>` attribute semantics (deferred cleanup via pcall).
 pub const CLOSE_RUNTIME: &str = "";
 
-/// Extensions to the `string` library present in 5.4 but absent in 5.1.
+/// Extensions to the `string` library present in 5.4/5.5 but absent in 5.1.
 pub const STRING_EXTENSIONS: &str = "";
 
-/// Extensions to the `math` library present in 5.4 but absent in 5.1
+/// Extensions to the `math` library present in 5.4/5.5 but absent in 5.1
 /// (e.g., `math.tointeger`, `math.type`).
 pub const MATH_EXTENSIONS: &str = "";
 
-/// Flags indicating which Lua 5.4 features are used in a translation unit.
-#[derive(Debug, Clone, Default)]
+/// Flags indicating which Lua 5.5 features are used in a translation unit.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FeatureSet {
+    /// Any of `&`, `|`, `~` (binary xor), `~` (unary not), `<<`, `>>`.
     pub bitwise_ops: bool,
+    /// Any `local x <close>` declaration.
     pub close_attribute: bool,
+    /// `//` integer division (Lua 5.3+, absent in Lua 5.1 / LuaJIT).
+    pub integer_div: bool,
     pub string_extensions: bool,
     pub math_extensions: bool,
 }
@@ -29,6 +33,7 @@ impl FeatureSet {
     pub fn is_empty(&self) -> bool {
         !self.bitwise_ops
             && !self.close_attribute
+            && !self.integer_div
             && !self.string_extensions
             && !self.math_extensions
     }
@@ -38,7 +43,6 @@ impl FeatureSet {
 ///
 /// Returns an empty string when no features are active.
 pub fn polyfills_for(features: &FeatureSet) -> String {
-    // TODO: collect required polyfill strings and join with newlines
     let mut parts: Vec<&'static str> = Vec::new();
 
     if features.bitwise_ops {
@@ -47,6 +51,7 @@ pub fn polyfills_for(features: &FeatureSet) -> String {
     if features.close_attribute {
         parts.push(CLOSE_RUNTIME);
     }
+    // integer_div is lowered by BitwiseOpTransform's sibling pass, not a preamble string.
     if features.string_extensions {
         parts.push(STRING_EXTENSIONS);
     }
@@ -54,6 +59,7 @@ pub fn polyfills_for(features: &FeatureSet) -> String {
         parts.push(MATH_EXTENSIONS);
     }
 
+    parts.retain(|s| !s.is_empty());
     parts.join("\n")
 }
 
@@ -62,14 +68,67 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "TODO: polyfills_for returns empty string when FeatureSet is default"]
     fn test_no_polyfills_when_empty() {
-        todo!()
+        let fs = FeatureSet::default();
+        assert!(fs.is_empty());
+        assert_eq!(polyfills_for(&fs), "");
     }
 
     #[test]
-    #[ignore = "TODO: polyfills_for includes BITWISE_FALLBACK when bitwise_ops is set"]
     fn test_bitwise_polyfill_included() {
-        todo!()
+        let fs = FeatureSet {
+            bitwise_ops: true,
+            ..Default::default()
+        };
+        assert!(!fs.is_empty());
+        // BITWISE_FALLBACK is "" until Phase 3 fills it; routing must not panic.
+        let _ = polyfills_for(&fs);
+    }
+
+    #[test]
+    fn test_feature_set_is_empty_requires_all_false() {
+        let mut fs = FeatureSet::default();
+        assert!(fs.is_empty());
+
+        fs.bitwise_ops = true;
+        assert!(!fs.is_empty());
+        fs.bitwise_ops = false;
+
+        fs.close_attribute = true;
+        assert!(!fs.is_empty());
+        fs.close_attribute = false;
+
+        fs.integer_div = true;
+        assert!(!fs.is_empty());
+        fs.integer_div = false;
+
+        fs.string_extensions = true;
+        assert!(!fs.is_empty());
+        fs.string_extensions = false;
+
+        fs.math_extensions = true;
+        assert!(!fs.is_empty());
+    }
+
+    #[test]
+    fn test_polyfills_for_empty_strings_returns_empty() {
+        // All polyfill constants are "" until Phase 3; result must still be "".
+        let fs = FeatureSet {
+            bitwise_ops: true,
+            close_attribute: true,
+            ..Default::default()
+        };
+        assert_eq!(polyfills_for(&fs), "");
+    }
+
+    #[test]
+    fn test_integer_div_not_in_polyfill_output() {
+        // integer_div is handled by transform pass, not a polyfill string.
+        let fs = FeatureSet {
+            integer_div: true,
+            ..Default::default()
+        };
+        // Should not panic and should return empty (no string for integer_div).
+        assert_eq!(polyfills_for(&fs), "");
     }
 }

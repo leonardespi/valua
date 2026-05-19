@@ -1,6 +1,6 @@
 [package]
 name        = "valua-polyfills"
-description = "Embedded Lua polyfill strings for Lua 5.4 → 5.1 transpilation"
+description = "Embedded Lua polyfill strings for Lua 5.5 → 5.1 transpilation"
 edition.workspace     = true
 version.workspace     = true
 authors.workspace     = true
