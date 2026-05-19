@@ -42,6 +42,7 @@ impl CompileOptions {
             target: LuaTarget::LuaJIT,
             emit: EmitOptions {
                 target: LuaTarget::LuaJIT,
+                emit_header_comment: false,
                 ..EmitOptions::default()
             },
             ..Self::default()
@@ -66,10 +67,16 @@ impl Compiler {
         use valua_diagnostics::Severity;
         use valua_lint::LintPipeline;
 
-        let block = valua_parser::parse(source)?;
+        use valua_codegen::{CodeGen, LuaEmitter};
+        use valua_transformer::{
+            BitwiseOpTransform, CloseAttributeTransform, ConstAttributeValidator, FeatureDetector,
+            IntegerDivisionTransform, PolyfillInjector, TransformPipeline,
+        };
 
-        let pipeline = LintPipeline::default_for(opts.target);
-        let diags = pipeline.run(&block);
+        let mut block = valua_parser::parse(source)?;
+
+        let lint_pipeline = LintPipeline::default_for(opts.target);
+        let diags = lint_pipeline.run(&block);
         let errors: Vec<_> = diags
             .into_iter()
             .filter(|d| d.severity == Severity::Error)
@@ -78,8 +85,26 @@ impl Compiler {
             return Err(CompileError::Lint(errors));
         }
 
-        // TODO(Phase 3): transform and emit
-        todo!("transform and emit pipeline — implement in Phase 3")
+        // Detect features before transformation (BitwiseOpTransform rewrites the ops away).
+        let features = FeatureDetector::detect(&block);
+
+        // For LuaJIT the bit library is native — no polyfill needed for bitwise ops.
+        let mut polyfill_features = features.clone();
+        if opts.target == LuaTarget::LuaJIT {
+            polyfill_features.bitwise_ops = false;
+        }
+
+        let mut pipeline = TransformPipeline::new();
+        pipeline
+            .add_pass(ConstAttributeValidator)
+            .add_pass(BitwiseOpTransform)
+            .add_pass(IntegerDivisionTransform)
+            .add_pass(CloseAttributeTransform)
+            .add_pass(PolyfillInjector::with_features(polyfill_features));
+        pipeline.run(&mut block)?;
+
+        let emitter = LuaEmitter::new(opts.emit);
+        emitter.emit(&block).map_err(CompileError::CodeGen)
     }
 
     /// Parse `source` and return the AST without running any analysis or transformation.

@@ -11,9 +11,9 @@ rust-version.workspace = true
 valua-diagnostics = { workspace = true }
 valua-ast         = { workspace = true }
 valua-polyfills   = { workspace = true }
+valua-parser      = { workspace = true }
 thiserror         = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 insta             = { workspace = true }
-valua-parser      = { workspace = true }

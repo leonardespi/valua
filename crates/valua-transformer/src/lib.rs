@@ -37,7 +37,10 @@
 //! Neither of those crates depends on the parser or the transformer, so adding
 //! to them cannot introduce a cycle.
 
-use valua_ast::{Attribute, BinaryOp, Block, Call, Expression, Statement, TableField, UnaryOp};
+use valua_ast::{
+    Attribute, BinaryOp, Block, Call, Expression, FunctionBody, If, LocalDecl, LocalName, Return,
+    Statement, TableField, UnaryOp,
+};
 use valua_diagnostics::Span;
 use valua_polyfills::FeatureSet;
 
@@ -422,6 +425,481 @@ fn make_bit_call(method: &str, args: Vec<Expression>, span: Span) -> Expression 
     })
 }
 
+// ── Integer division helpers ──────────────────────────────────────────────────
+
+fn rewrite_idiv_block(block: &mut Block) {
+    for stmt in &mut block.stmts {
+        rewrite_idiv_stmt(stmt);
+    }
+}
+
+fn rewrite_idiv_stmt(stmt: &mut Statement) {
+    match stmt {
+        Statement::LocalDecl(d) => {
+            for val in &mut d.values {
+                rewrite_idiv_expr(val);
+            }
+        }
+        Statement::Assign(a) => {
+            for target in &mut a.targets {
+                rewrite_idiv_expr(target);
+            }
+            for val in &mut a.values {
+                rewrite_idiv_expr(val);
+            }
+        }
+        Statement::Return(r) => {
+            for val in &mut r.values {
+                rewrite_idiv_expr(val);
+            }
+        }
+        Statement::ExprStmt(e) => rewrite_idiv_expr(e),
+        Statement::Do(b) => rewrite_idiv_block(&mut b.body),
+        Statement::While(w) => {
+            rewrite_idiv_expr(&mut w.condition);
+            rewrite_idiv_block(&mut w.body);
+        }
+        Statement::Repeat(r) => {
+            rewrite_idiv_block(&mut r.body);
+            rewrite_idiv_expr(&mut r.condition);
+        }
+        Statement::If(i) => {
+            rewrite_idiv_expr(&mut i.condition);
+            rewrite_idiv_block(&mut i.then_block);
+            for elseif in &mut i.elseif_clauses {
+                rewrite_idiv_expr(&mut elseif.condition);
+                rewrite_idiv_block(&mut elseif.body);
+            }
+            if let Some(else_block) = &mut i.else_block {
+                rewrite_idiv_block(else_block);
+            }
+        }
+        Statement::NumericFor(f) => {
+            rewrite_idiv_expr(&mut f.start);
+            rewrite_idiv_expr(&mut f.limit);
+            if let Some(step) = &mut f.step {
+                rewrite_idiv_expr(step);
+            }
+            rewrite_idiv_block(&mut f.body);
+        }
+        Statement::GenericFor(f) => {
+            for iter in &mut f.iterators {
+                rewrite_idiv_expr(iter);
+            }
+            rewrite_idiv_block(&mut f.body);
+        }
+        Statement::FunctionDecl(f) => rewrite_idiv_block(&mut f.func.body),
+        Statement::LocalFunctionDecl(f) => rewrite_idiv_block(&mut f.func.body),
+        _ => {}
+    }
+}
+
+fn rewrite_idiv_expr(expr: &mut Expression) {
+    match expr {
+        Expression::BinOp(lhs, _, rhs, _) => {
+            rewrite_idiv_expr(lhs);
+            rewrite_idiv_expr(rhs);
+        }
+        Expression::UnOp(_, operand, _) => rewrite_idiv_expr(operand),
+        Expression::Call(call) => match call {
+            Call::Call { func, args, .. } => {
+                rewrite_idiv_expr(func);
+                for arg in args {
+                    rewrite_idiv_expr(arg);
+                }
+            }
+            Call::MethodCall { obj, args, .. } => {
+                rewrite_idiv_expr(obj);
+                for arg in args {
+                    rewrite_idiv_expr(arg);
+                }
+            }
+        },
+        Expression::Table(t) => {
+            for field in &mut t.fields {
+                match field {
+                    TableField::ExprKey { key, value, .. } => {
+                        rewrite_idiv_expr(key);
+                        rewrite_idiv_expr(value);
+                    }
+                    TableField::NameKey { value, .. } => rewrite_idiv_expr(value),
+                    TableField::Positional(value) => rewrite_idiv_expr(value),
+                }
+            }
+        }
+        Expression::Function(f) => rewrite_idiv_block(&mut f.body),
+        Expression::Index(base, _, _) => rewrite_idiv_expr(base),
+        Expression::IndexExpr(base, key, _) => {
+            rewrite_idiv_expr(base);
+            rewrite_idiv_expr(key);
+        }
+        _ => {}
+    }
+
+    if matches!(expr, Expression::BinOp(_, BinaryOp::IDiv, _, _)) {
+        let old = std::mem::replace(expr, Expression::Nil(Span::dummy()));
+        *expr = lower_idiv(old);
+    }
+}
+
+fn lower_idiv(expr: Expression) -> Expression {
+    let Expression::BinOp(lhs, BinaryOp::IDiv, rhs, span) = expr else {
+        unreachable!()
+    };
+    Expression::Call(Call::Call {
+        func: Box::new(Expression::Index(
+            Box::new(Expression::Name("math".to_string(), span)),
+            "floor".to_string(),
+            span,
+        )),
+        args: vec![Expression::BinOp(lhs, BinaryOp::Div, rhs, span)],
+        span,
+    })
+}
+
+// ── Const attribute stripping helpers ─────────────────────────────────────────
+
+fn strip_const_block(block: &mut Block) {
+    for stmt in &mut block.stmts {
+        strip_const_stmt(stmt);
+    }
+}
+
+fn strip_const_stmt(stmt: &mut Statement) {
+    match stmt {
+        Statement::LocalDecl(d) => {
+            for name in &mut d.names {
+                if name.attribute == Some(Attribute::Const) {
+                    name.attribute = None;
+                }
+            }
+            for val in &mut d.values {
+                strip_const_expr(val);
+            }
+        }
+        Statement::Assign(a) => {
+            for val in &mut a.values {
+                strip_const_expr(val);
+            }
+        }
+        Statement::Return(r) => {
+            for val in &mut r.values {
+                strip_const_expr(val);
+            }
+        }
+        Statement::ExprStmt(e) => strip_const_expr(e),
+        Statement::Do(b) => strip_const_block(&mut b.body),
+        Statement::While(w) => {
+            strip_const_expr(&mut w.condition);
+            strip_const_block(&mut w.body);
+        }
+        Statement::Repeat(r) => {
+            strip_const_block(&mut r.body);
+            strip_const_expr(&mut r.condition);
+        }
+        Statement::If(i) => {
+            strip_const_expr(&mut i.condition);
+            strip_const_block(&mut i.then_block);
+            for elseif in &mut i.elseif_clauses {
+                strip_const_expr(&mut elseif.condition);
+                strip_const_block(&mut elseif.body);
+            }
+            if let Some(else_block) = &mut i.else_block {
+                strip_const_block(else_block);
+            }
+        }
+        Statement::NumericFor(f) => {
+            strip_const_expr(&mut f.start);
+            strip_const_expr(&mut f.limit);
+            if let Some(step) = &mut f.step {
+                strip_const_expr(step);
+            }
+            strip_const_block(&mut f.body);
+        }
+        Statement::GenericFor(f) => {
+            for iter in &mut f.iterators {
+                strip_const_expr(iter);
+            }
+            strip_const_block(&mut f.body);
+        }
+        Statement::FunctionDecl(f) => strip_const_block(&mut f.func.body),
+        Statement::LocalFunctionDecl(f) => strip_const_block(&mut f.func.body),
+        _ => {}
+    }
+}
+
+fn strip_const_expr(expr: &mut Expression) {
+    match expr {
+        Expression::BinOp(lhs, _, rhs, _) => {
+            strip_const_expr(lhs);
+            strip_const_expr(rhs);
+        }
+        Expression::UnOp(_, operand, _) => strip_const_expr(operand),
+        Expression::Call(call) => match call {
+            Call::Call { func, args, .. } => {
+                strip_const_expr(func);
+                for arg in args {
+                    strip_const_expr(arg);
+                }
+            }
+            Call::MethodCall { obj, args, .. } => {
+                strip_const_expr(obj);
+                for arg in args {
+                    strip_const_expr(arg);
+                }
+            }
+        },
+        Expression::Table(t) => {
+            for field in &mut t.fields {
+                match field {
+                    TableField::ExprKey { key, value, .. } => {
+                        strip_const_expr(key);
+                        strip_const_expr(value);
+                    }
+                    TableField::NameKey { value, .. } => strip_const_expr(value),
+                    TableField::Positional(value) => strip_const_expr(value),
+                }
+            }
+        }
+        Expression::Function(f) => strip_const_block(&mut f.body),
+        Expression::Index(base, _, _) => strip_const_expr(base),
+        Expression::IndexExpr(base, key, _) => {
+            strip_const_expr(base);
+            strip_const_expr(key);
+        }
+        _ => {}
+    }
+}
+
+// ── Close attribute transform helpers ─────────────────────────────────────────
+
+const CLOSE_HELPER_SRC: &str = "\
+local function __valua_close(obj)\n\
+  if obj == nil then return end\n\
+  local mt = getmetatable(obj)\n\
+  if mt and mt.__close then\n\
+    mt.__close(obj)\n\
+    return\n\
+  end\n\
+  if type(obj) == \"table\" and type(obj.close) == \"function\" then\n\
+    obj:close()\n\
+    return\n\
+  end\n\
+end";
+
+fn is_close_stmt(stmt: &Statement) -> bool {
+    matches!(stmt, Statement::LocalDecl(d) if
+        d.names.iter().any(|n| n.attribute == Some(Attribute::Close)))
+}
+
+fn transform_close_block(block: &mut Block) -> Result<(), TransformError> {
+    let close_idx = block.stmts.iter().position(is_close_stmt);
+
+    if let Some(i) = close_idx {
+        let helper_block =
+            valua_parser::parse(CLOSE_HELPER_SRC).map_err(|e| TransformError::Internal {
+                pass: "CloseAttributeTransform",
+                detail: e.to_string(),
+            })?;
+        let helper_len = helper_block.stmts.len();
+        let existing = std::mem::take(&mut block.stmts);
+        block.stmts = helper_block.stmts;
+        block.stmts.extend(existing);
+        process_close_at(block, i + helper_len)?;
+    }
+
+    for stmt in &mut block.stmts {
+        recurse_close_stmt(stmt)?;
+    }
+    Ok(())
+}
+
+fn process_close_at(block: &mut Block, i: usize) -> Result<(), TransformError> {
+    let var_name = if let Statement::LocalDecl(d) = &block.stmts[i] {
+        d.names
+            .iter()
+            .find(|n| n.attribute == Some(Attribute::Close))
+            .map(|n| n.name.clone())
+            .unwrap()
+    } else {
+        unreachable!()
+    };
+
+    if let Statement::LocalDecl(d) = &mut block.stmts[i] {
+        for name in &mut d.names {
+            if name.attribute == Some(Attribute::Close) {
+                name.attribute = None;
+            }
+        }
+    }
+
+    let tail: Vec<Statement> = block.stmts.drain(i + 1..).collect();
+    let tail_has_return = matches!(tail.last(), Some(Statement::Return(_)));
+    let tail_block = Block {
+        stmts: tail,
+        span: Span::dummy(),
+    };
+
+    let d = Span::dummy();
+
+    let pcall_stmt = Statement::LocalDecl(LocalDecl {
+        names: vec![
+            LocalName {
+                name: "__valua_ok".to_string(),
+                attribute: None,
+                span: d,
+            },
+            LocalName {
+                name: "__valua_result".to_string(),
+                attribute: None,
+                span: d,
+            },
+        ],
+        values: vec![Expression::Call(Call::Call {
+            func: Box::new(Expression::Name("pcall".to_string(), d)),
+            args: vec![Expression::Function(FunctionBody {
+                params: vec![],
+                is_vararg: false,
+                body: tail_block,
+                span: d,
+            })],
+            span: d,
+        })],
+        span: d,
+    });
+
+    let cleanup_stmt = Statement::ExprStmt(Expression::Call(Call::Call {
+        func: Box::new(Expression::Name("__valua_close".to_string(), d)),
+        args: vec![Expression::Name(var_name, d)],
+        span: d,
+    }));
+
+    let reraise_stmt = Statement::If(If {
+        condition: Box::new(Expression::UnOp(
+            UnaryOp::Not,
+            Box::new(Expression::Name("__valua_ok".to_string(), d)),
+            d,
+        )),
+        then_block: Block {
+            stmts: vec![Statement::ExprStmt(Expression::Call(Call::Call {
+                func: Box::new(Expression::Name("error".to_string(), d)),
+                args: vec![
+                    Expression::Name("__valua_result".to_string(), d),
+                    Expression::Integer(0, d),
+                ],
+                span: d,
+            }))],
+            span: d,
+        },
+        elseif_clauses: vec![],
+        else_block: None,
+        span: d,
+    });
+
+    block.stmts.push(pcall_stmt);
+    block.stmts.push(cleanup_stmt);
+    block.stmts.push(reraise_stmt);
+
+    if tail_has_return {
+        block.stmts.push(Statement::Return(Return {
+            values: vec![Expression::Name("__valua_result".to_string(), d)],
+            span: d,
+        }));
+    }
+
+    Ok(())
+}
+
+fn recurse_close_stmt(stmt: &mut Statement) -> Result<(), TransformError> {
+    match stmt {
+        Statement::Do(b) => transform_close_block(&mut b.body),
+        Statement::While(w) => transform_close_block(&mut w.body),
+        Statement::Repeat(r) => transform_close_block(&mut r.body),
+        Statement::If(i) => {
+            transform_close_block(&mut i.then_block)?;
+            for elseif in &mut i.elseif_clauses {
+                transform_close_block(&mut elseif.body)?;
+            }
+            if let Some(else_block) = &mut i.else_block {
+                transform_close_block(else_block)?;
+            }
+            Ok(())
+        }
+        Statement::NumericFor(f) => transform_close_block(&mut f.body),
+        Statement::GenericFor(f) => transform_close_block(&mut f.body),
+        Statement::FunctionDecl(f) => transform_close_block(&mut f.func.body),
+        Statement::LocalFunctionDecl(f) => transform_close_block(&mut f.func.body),
+        Statement::LocalDecl(d) => {
+            for val in &mut d.values {
+                recurse_close_expr(val)?;
+            }
+            Ok(())
+        }
+        Statement::ExprStmt(e) => recurse_close_expr(e),
+        Statement::Assign(a) => {
+            for val in &mut a.values {
+                recurse_close_expr(val)?;
+            }
+            Ok(())
+        }
+        Statement::Return(r) => {
+            for val in &mut r.values {
+                recurse_close_expr(val)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+fn recurse_close_expr(expr: &mut Expression) -> Result<(), TransformError> {
+    match expr {
+        Expression::Function(f) => transform_close_block(&mut f.body),
+        Expression::Call(call) => match call {
+            Call::Call { func, args, .. } => {
+                recurse_close_expr(func)?;
+                for arg in args {
+                    recurse_close_expr(arg)?;
+                }
+                Ok(())
+            }
+            Call::MethodCall { obj, args, .. } => {
+                recurse_close_expr(obj)?;
+                for arg in args {
+                    recurse_close_expr(arg)?;
+                }
+                Ok(())
+            }
+        },
+        Expression::BinOp(lhs, _, rhs, _) => {
+            recurse_close_expr(lhs)?;
+            recurse_close_expr(rhs)?;
+            Ok(())
+        }
+        Expression::UnOp(_, operand, _) => recurse_close_expr(operand),
+        Expression::Table(t) => {
+            for field in &mut t.fields {
+                match field {
+                    TableField::ExprKey { key, value, .. } => {
+                        recurse_close_expr(key)?;
+                        recurse_close_expr(value)?;
+                    }
+                    TableField::NameKey { value, .. } => recurse_close_expr(value)?,
+                    TableField::Positional(value) => recurse_close_expr(value)?,
+                }
+            }
+            Ok(())
+        }
+        Expression::Index(base, _, _) => recurse_close_expr(base),
+        Expression::IndexExpr(base, key, _) => {
+            recurse_close_expr(base)?;
+            recurse_close_expr(key)?;
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 // ── Concrete passes ───────────────────────────────────────────────────────────
 
 /// Rewrites `a & b`, `a | b`, `a ~ b`, `~a`, `a << b`, `a >> b` to `bit.*` calls.
@@ -504,8 +982,9 @@ impl Transform for IntegerDivisionTransform {
         "IntegerDivisionTransform"
     }
 
-    fn transform(&mut self, _block: &mut Block) -> Result<(), TransformError> {
-        todo!("rewrite BinaryOp::IDiv nodes to math.floor(a / b) call expressions")
+    fn transform(&mut self, block: &mut Block) -> Result<(), TransformError> {
+        rewrite_idiv_block(block);
+        Ok(())
     }
 }
 
@@ -518,8 +997,9 @@ impl Transform for ConstAttributeValidator {
         "ConstAttributeValidator"
     }
 
-    fn transform(&mut self, _block: &mut Block) -> Result<(), TransformError> {
-        todo!("validate that <const> locals are never reassigned")
+    fn transform(&mut self, block: &mut Block) -> Result<(), TransformError> {
+        strip_const_block(block);
+        Ok(())
     }
 }
 
@@ -577,7 +1057,7 @@ impl Transform for ConstAttributeValidator {
 ///    a. Drain `block.stmts.drain(i+1..)` into `Vec<Statement>` named `tail`.
 ///
 ///    b. Strip `Attribute::Close` from the matching `LocalName` (set
-///       `attribute = None`).  The `<init_expr>` is unchanged.
+///    `attribute = None`).  The `<init_expr>` is unchanged.
 ///
 ///    c. Build **`pcall_stmt`**:
 ///       ```text
@@ -667,10 +1147,10 @@ impl Transform for ConstAttributeValidator {
 ///       ```
 ///
 ///    g. Append `pcall_stmt`, `mt_stmt`, `close_call_stmt`, `reraise_stmt`
-///       to `block.stmts` in that order.
+///    to `block.stmts` in that order.
 ///
 ///    h. **Stop forward scanning** — the tail has been consumed.  Recursion
-///       (step 3) processes the newly constructed inner blocks.
+///    (step 3) processes the newly constructed inner blocks.
 ///
 /// 3. Recurse into **all sub-blocks**: function bodies, `do`/`while`/
 ///    `repeat`/`if`/`for` bodies.  This ensures `<close>` declarations nested
@@ -705,8 +1185,8 @@ impl Transform for CloseAttributeTransform {
         "CloseAttributeTransform"
     }
 
-    fn transform(&mut self, _block: &mut Block) -> Result<(), TransformError> {
-        todo!("desugar <close> locals into pcall-based cleanup wrappers")
+    fn transform(&mut self, block: &mut Block) -> Result<(), TransformError> {
+        transform_close_block(block)
     }
 }
 
@@ -771,22 +1251,21 @@ impl Transform for PolyfillInjector {
             .clone()
             .unwrap_or_else(|| FeatureDetector::detect(block));
 
-        // Surgical early-return: no polyfills needed, block is untouched.
         if features.is_empty() {
             return Ok(());
         }
 
-        // Phase 3 body: parse the polyfill chunk and prepend its statements
-        // to `block.stmts`. Blocked on: non-empty polyfill constants in
-        // valua-polyfills and valua-parser as a runtime dependency here.
-        //
-        // Shape of the future implementation:
-        //   let src = valua_polyfills::polyfills_for(&features);
-        //   if src.is_empty() { return Ok(()); }
-        //   let polyfill_block = valua_parser::parse(&src)
-        //       .map_err(|e| TransformError::Internal { pass: self.name(), detail: e.to_string() })?;
-        //   let tail = std::mem::replace(&mut block.stmts, polyfill_block.stmts);
-        //   block.stmts.extend(tail);
+        let src = valua_polyfills::polyfills_for(&features);
+        if src.is_empty() {
+            return Ok(());
+        }
+
+        let polyfill_block = valua_parser::parse(&src).map_err(|e| TransformError::Internal {
+            pass: self.name(),
+            detail: e.to_string(),
+        })?;
+        let tail = std::mem::replace(&mut block.stmts, polyfill_block.stmts);
+        block.stmts.extend(tail);
         Ok(())
     }
 }
@@ -913,9 +1392,7 @@ mod tests {
 
     #[test]
     fn detect_bitwise_in_nested_function_body() {
-        assert!(
-            FeatureDetector::detect(&parse("function foo() return a & b end")).bitwise_ops
-        );
+        assert!(FeatureDetector::detect(&parse("function foo() return a & b end")).bitwise_ops);
     }
 
     #[test]
@@ -926,9 +1403,7 @@ mod tests {
     #[test]
     fn detect_bitwise_in_while_condition() {
         // `(flags & mask) ~= 0`: `&` has higher precedence than `~=` → BinOp(BitwiseAnd) found
-        assert!(
-            FeatureDetector::detect(&parse("while (flags & mask) ~= 0 do end")).bitwise_ops
-        );
+        assert!(FeatureDetector::detect(&parse("while (flags & mask) ~= 0 do end")).bitwise_ops);
     }
 
     #[test]
@@ -943,9 +1418,7 @@ mod tests {
 
     #[test]
     fn detect_bitwise_in_table_field_value() {
-        assert!(
-            FeatureDetector::detect(&parse("local t = { flags = a | b }")).bitwise_ops
-        );
+        assert!(FeatureDetector::detect(&parse("local t = { flags = a | b }")).bitwise_ops);
     }
 
     #[test]
@@ -1046,6 +1519,234 @@ mod tests {
         // Injection path is reachable; must not panic even with empty BITWISE_FALLBACK.
         let mut block = parse("local x = a & b");
         PolyfillInjector::new().transform(&mut block).unwrap();
+    }
+
+    // ── PolyfillInjector — early-return for stubbed/missing polyfill strings ──
+
+    #[test]
+    fn polyfill_injector_stubbed_close_runtime_no_mutation() {
+        // CLOSE_RUNTIME = "" — second early-return fires even when feature is set.
+        let mut block = parse("local f <close> = io.open('x')");
+        let original_len = block.stmts.len();
+        PolyfillInjector::with_features(FeatureSet {
+            close_attribute: true,
+            ..Default::default()
+        })
+        .transform(&mut block)
+        .unwrap();
+        assert_eq!(
+            block.stmts.len(),
+            original_len,
+            "CLOSE_RUNTIME stub must leave block unchanged"
+        );
+    }
+
+    #[test]
+    fn polyfill_injector_stubbed_string_extensions_no_mutation() {
+        let mut block = parse("local x = 'hello'");
+        let original_len = block.stmts.len();
+        PolyfillInjector::with_features(FeatureSet {
+            string_extensions: true,
+            ..Default::default()
+        })
+        .transform(&mut block)
+        .unwrap();
+        assert_eq!(
+            block.stmts.len(),
+            original_len,
+            "STRING_EXTENSIONS stub must leave block unchanged"
+        );
+    }
+
+    #[test]
+    fn polyfill_injector_stubbed_math_extensions_no_mutation() {
+        let mut block = parse("local x = 1");
+        let original_len = block.stmts.len();
+        PolyfillInjector::with_features(FeatureSet {
+            math_extensions: true,
+            ..Default::default()
+        })
+        .transform(&mut block)
+        .unwrap();
+        assert_eq!(
+            block.stmts.len(),
+            original_len,
+            "MATH_EXTENSIONS stub must leave block unchanged"
+        );
+    }
+
+    #[test]
+    fn polyfill_injector_integer_div_no_polyfill_string() {
+        // integer_div is lowered by IntegerDivisionTransform, not a preamble string.
+        let mut block = parse("local x = a // b");
+        let original_len = block.stmts.len();
+        PolyfillInjector::new().transform(&mut block).unwrap();
+        assert_eq!(
+            block.stmts.len(),
+            original_len,
+            "integer_div has no polyfill string — block must be unchanged"
+        );
+    }
+
+    // ── PolyfillInjector — statement count and position ───────────────────────
+
+    #[test]
+    fn polyfill_injector_bitwise_grows_stmt_count_by_polyfill_len() {
+        let polyfill_stmts = parse(valua_polyfills::BITWISE_FALLBACK).stmts.len();
+        let mut block = parse("local x = a & b");
+        let user_stmts = block.stmts.len();
+        PolyfillInjector::new().transform(&mut block).unwrap();
+        assert_eq!(
+            block.stmts.len(),
+            polyfill_stmts + user_stmts,
+            "block must grow by exactly the polyfill statement count"
+        );
+    }
+
+    #[test]
+    fn polyfill_injector_original_stmts_preserved_at_tail() {
+        let polyfill_len = parse(valua_polyfills::BITWISE_FALLBACK).stmts.len();
+        let mut block = parse("local x = a & b");
+        PolyfillInjector::new().transform(&mut block).unwrap();
+        let last = block.stmts.last().expect("block must not be empty");
+        assert!(
+            matches!(last, Statement::LocalDecl(d) if d.names[0].name == "x"),
+            "user's `local x` must survive at the tail; polyfill_len={polyfill_len}"
+        );
+    }
+
+    #[test]
+    fn polyfill_injector_prepend_at_index_zero_is_bu_decl() {
+        let mut block = parse("local x = a & b");
+        PolyfillInjector::new().transform(&mut block).unwrap();
+        let Statement::LocalDecl(ref d) = block.stmts[0] else {
+            panic!("expected LocalDecl at index 0");
+        };
+        assert_eq!(
+            d.names[0].name, "_bU",
+            "first injected statement must be `local _bU = ...`"
+        );
+    }
+
+    // ── PolyfillInjector — with_features pre-supply ───────────────────────────
+
+    #[test]
+    fn polyfill_injector_with_features_forces_injection_on_clean_ast() {
+        // Pre-supplied FeatureSet bypasses auto-detect; clean AST still gets polyfill.
+        let polyfill_len = parse(valua_polyfills::BITWISE_FALLBACK).stmts.len();
+        let mut block = parse("local x = 1 + 2");
+        let user_len = block.stmts.len();
+        PolyfillInjector::with_features(FeatureSet {
+            bitwise_ops: true,
+            ..Default::default()
+        })
+        .transform(&mut block)
+        .unwrap();
+        assert_eq!(
+            block.stmts.len(),
+            polyfill_len + user_len,
+            "with_features(bitwise) must inject polyfill even on a clean AST"
+        );
+    }
+
+    // ── PolyfillInjector — non-idempotency documentation ─────────────────────
+
+    #[test]
+    fn polyfill_injector_double_call_documents_non_idempotency() {
+        // Two auto-detect calls inject twice: the original BinOp node at the tail
+        // is still detected on the second pass. Callers must invoke exactly once.
+        let polyfill_len = parse(valua_polyfills::BITWISE_FALLBACK).stmts.len();
+        let mut block = parse("local x = a & b");
+        let user_len = block.stmts.len();
+        PolyfillInjector::new().transform(&mut block).unwrap();
+        PolyfillInjector::new().transform(&mut block).unwrap();
+        assert_eq!(
+            block.stmts.len(),
+            2 * polyfill_len + user_len,
+            "double injection yields 2× polyfill prefix — single invocation per unit required"
+        );
+    }
+
+    // ── PolyfillInjector — multi-flag combinations ────────────────────────────
+
+    #[test]
+    fn polyfill_injector_all_stubs_plus_bitwise_equals_bitwise_alone() {
+        // Stub polyfills contribute empty strings; combined output == bitwise-only.
+        let polyfill_len = parse(valua_polyfills::BITWISE_FALLBACK).stmts.len();
+
+        let mut block_combined = parse("local x = 1");
+        PolyfillInjector::with_features(FeatureSet {
+            bitwise_ops: true,
+            close_attribute: true,
+            string_extensions: true,
+            math_extensions: true,
+            ..Default::default()
+        })
+        .transform(&mut block_combined)
+        .unwrap();
+
+        let mut block_bitwise = parse("local x = 1");
+        PolyfillInjector::with_features(FeatureSet {
+            bitwise_ops: true,
+            ..Default::default()
+        })
+        .transform(&mut block_bitwise)
+        .unwrap();
+
+        assert_eq!(
+            block_combined.stmts.len(),
+            block_bitwise.stmts.len(),
+            "stub polyfills must not inflate stmt count; expected polyfill_len={polyfill_len}"
+        );
+    }
+
+    // ── Polyfill string validity ──────────────────────────────────────────────
+
+    #[test]
+    fn bitwise_fallback_is_valid_lua_that_parses() {
+        let block = parse(valua_polyfills::BITWISE_FALLBACK);
+        assert!(
+            !block.stmts.is_empty(),
+            "BITWISE_FALLBACK must produce at least one statement when parsed"
+        );
+    }
+
+    #[test]
+    fn bitwise_fallback_declares_local_bit_table() {
+        let block = parse(valua_polyfills::BITWISE_FALLBACK);
+        let has_bit = block.stmts.iter().any(
+            |s| matches!(s, Statement::LocalDecl(d) if d.names.iter().any(|n| n.name == "bit")),
+        );
+        assert!(
+            has_bit,
+            "BITWISE_FALLBACK must contain `local bit = {{}}` to avoid global scope pollution"
+        );
+    }
+
+    #[test]
+    fn bitwise_fallback_no_duplicate_local_identifier_names() {
+        let block = parse(valua_polyfills::BITWISE_FALLBACK);
+        let mut locals: Vec<String> = Vec::new();
+        for stmt in &block.stmts {
+            match stmt {
+                Statement::LocalDecl(d) => {
+                    for n in &d.names {
+                        locals.push(n.name.clone());
+                    }
+                }
+                Statement::LocalFunctionDecl(f) => {
+                    locals.push(f.name.clone());
+                }
+                _ => {}
+            }
+        }
+        let mut seen = std::collections::HashSet::new();
+        for name in &locals {
+            assert!(
+                seen.insert(name.as_str()),
+                "duplicate local `{name}` in BITWISE_FALLBACK — identifier collision risk"
+            );
+        }
     }
 
     // ── Two-pass mini-pipeline ────────────────────────────────────────────────
@@ -1160,7 +1861,10 @@ mod tests {
         let Statement::LocalDecl(ref d) = block.stmts[0] else {
             panic!("expected LocalDecl");
         };
-        let Expression::Call(Call::Call { ref func, ref args, .. }) = d.values[0] else {
+        let Expression::Call(Call::Call {
+            ref func, ref args, ..
+        }) = d.values[0]
+        else {
             panic!("expected Call");
         };
         let Expression::Index(ref base, ref field, _) = **func else {
