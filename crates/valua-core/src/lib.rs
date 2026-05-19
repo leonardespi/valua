@@ -85,14 +85,9 @@ impl Compiler {
             return Err(CompileError::Lint(errors));
         }
 
-        // Detect features before transformation (BitwiseOpTransform rewrites the ops away).
+        // Detect features before transformation — BitwiseOpTransform rewrites the ops away,
+        // so detection must run against the original AST.
         let features = FeatureDetector::detect(&block);
-
-        // For LuaJIT the bit library is native — no polyfill needed for bitwise ops.
-        let mut polyfill_features = features.clone();
-        if opts.target == LuaTarget::LuaJIT {
-            polyfill_features.bitwise_ops = false;
-        }
 
         let mut pipeline = TransformPipeline::new();
         pipeline
@@ -100,7 +95,7 @@ impl Compiler {
             .add_pass(BitwiseOpTransform)
             .add_pass(IntegerDivisionTransform)
             .add_pass(CloseAttributeTransform)
-            .add_pass(PolyfillInjector::with_features(polyfill_features));
+            .add_pass(PolyfillInjector::with_features_for_target(features, opts.target));
         pipeline.run(&mut block)?;
 
         let emitter = LuaEmitter::new(opts.emit);

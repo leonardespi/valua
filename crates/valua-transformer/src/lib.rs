@@ -38,8 +38,8 @@
 //! to them cannot introduce a cycle.
 
 use valua_ast::{
-    Attribute, BinaryOp, Block, Call, Expression, FunctionBody, If, LocalDecl, LocalName, Return,
-    Statement, TableField, UnaryOp,
+    Attribute, BinaryOp, Block, Call, Expression, FunctionBody, If, LocalDecl, LocalName,
+    LuaTarget, Return, Statement, TableField, UnaryOp,
 };
 use valua_diagnostics::Span;
 use valua_polyfills::FeatureSet;
@@ -1225,6 +1225,9 @@ impl Transform for CloseAttributeTransform {
 #[derive(Debug, Default)]
 pub struct PolyfillInjector {
     feature_set: Option<FeatureSet>,
+    /// Compilation target — used to suppress polyfills the target already provides natively.
+    /// Defaults to `LuaTarget::Lua51` (inject all applicable polyfills).
+    target: LuaTarget,
 }
 
 impl PolyfillInjector {
@@ -1233,9 +1236,23 @@ impl PolyfillInjector {
     }
 
     /// Pre-supply a `FeatureSet` computed by a prior `FeatureDetector` pass.
+    /// Target defaults to `Lua51` — all applicable polyfills are injected.
     pub fn with_features(fs: FeatureSet) -> Self {
         Self {
             feature_set: Some(fs),
+            target: LuaTarget::default(),
+        }
+    }
+
+    /// Pre-supply a `FeatureSet` and a `LuaTarget`.
+    ///
+    /// The injector will suppress polyfills that `target` already provides natively
+    /// (e.g., LuaJIT ships the `bit` library, so `BITWISE_FALLBACK` is not injected).
+    /// This is the constructor to use inside `Compiler::compile` where the target is known.
+    pub fn with_features_for_target(fs: FeatureSet, target: LuaTarget) -> Self {
+        Self {
+            feature_set: Some(fs),
+            target,
         }
     }
 }
@@ -1246,10 +1263,12 @@ impl Transform for PolyfillInjector {
     }
 
     fn transform(&mut self, block: &mut Block) -> Result<(), TransformError> {
-        let features = self
+        let raw = self
             .feature_set
             .clone()
             .unwrap_or_else(|| FeatureDetector::detect(block));
+
+        let features = suppress_native_features(raw, self.target);
 
         if features.is_empty() {
             return Ok(());
@@ -1268,6 +1287,22 @@ impl Transform for PolyfillInjector {
         block.stmts.extend(tail);
         Ok(())
     }
+}
+
+/// Zero out polyfill flags for features the target runtime already provides natively.
+///
+/// This is the single source of truth for "what does each target ship built-in?"
+/// Adding a new target means adding one new arm here; no other site needs to change.
+fn suppress_native_features(mut fs: FeatureSet, target: LuaTarget) -> FeatureSet {
+    match target {
+        LuaTarget::LuaJIT => {
+            // LuaJIT 2.x ships the `bit` library natively.
+            // Injecting BITWISE_FALLBACK would shadow it with a slower pure-Lua implementation.
+            fs.bitwise_ops = false;
+        }
+        LuaTarget::Lua51 => {}
+    }
+    fs
 }
 
 // ── Default pipeline ──────────────────────────────────────────────────────────
@@ -1894,5 +1929,75 @@ mod tests {
     #[ignore = "TODO: verify passes run in declared order via observable side-effects"]
     fn test_pipeline_order() {
         todo!()
+    }
+
+    // ── PolyfillInjector — target-aware native feature suppression (TD3) ───────
+
+    #[test]
+    fn polyfill_injector_luajit_suppresses_bitwise_polyfill() {
+        // LuaJIT ships `bit` natively — BITWISE_FALLBACK must NOT be injected.
+        let mut block = parse("local x = 1 + 2");
+        let original_len = block.stmts.len();
+        PolyfillInjector::with_features_for_target(
+            FeatureSet {
+                bitwise_ops: true,
+                ..Default::default()
+            },
+            LuaTarget::LuaJIT,
+        )
+        .transform(&mut block)
+        .unwrap();
+        assert_eq!(
+            block.stmts.len(),
+            original_len,
+            "LuaJIT target must not inject BITWISE_FALLBACK — bit library is native"
+        );
+    }
+
+    #[test]
+    fn polyfill_injector_lua51_injects_bitwise_polyfill() {
+        // Lua 5.1 has no native bit library — BITWISE_FALLBACK must be injected.
+        let polyfill_len = parse(valua_polyfills::BITWISE_FALLBACK).stmts.len();
+        let mut block = parse("local x = 1 + 2");
+        let user_len = block.stmts.len();
+        PolyfillInjector::with_features_for_target(
+            FeatureSet {
+                bitwise_ops: true,
+                ..Default::default()
+            },
+            LuaTarget::Lua51,
+        )
+        .transform(&mut block)
+        .unwrap();
+        assert_eq!(
+            block.stmts.len(),
+            polyfill_len + user_len,
+            "Lua51 target must inject BITWISE_FALLBACK when bitwise_ops is set"
+        );
+    }
+
+    #[test]
+    fn polyfill_injector_luajit_leaves_non_bitwise_features_unaffected() {
+        // suppress_native_features only zeroes bitwise_ops for LuaJIT.
+        // close_attribute, integer_div, etc. are unaffected (their polyfills are empty strings
+        // today, so injection still early-returns — but the suppression must not touch them).
+        let mut block = parse("local x = 1");
+        let original_len = block.stmts.len();
+        PolyfillInjector::with_features_for_target(
+            FeatureSet {
+                bitwise_ops: true,
+                close_attribute: true,
+                integer_div: true,
+                ..Default::default()
+            },
+            LuaTarget::LuaJIT,
+        )
+        .transform(&mut block)
+        .unwrap();
+        assert_eq!(
+            block.stmts.len(),
+            original_len,
+            "LuaJIT: bitwise suppressed + all other polyfills are empty stubs = no injection"
+        );
     }
 }
