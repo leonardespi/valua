@@ -351,8 +351,7 @@ mod tests {
         let d = &diagnostics[0];
         assert_eq!(d.secondary_labels.len(), 1);
         assert_eq!(
-            d.secondary_labels[0].0.line,
-            1,
+            d.secondary_labels[0].0.line, 1,
             "secondary label should point to line 1 (declaration)"
         );
     }

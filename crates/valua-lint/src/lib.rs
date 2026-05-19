@@ -3,11 +3,10 @@
 //! Core usage:
 //! ```ignore
 //! let block = valua_parser::parse(src)?;
-//! let diags = LintPipeline::default_for(LuaTarget::LuaJIT).run(&block);
+//! let diags = LintPipeline::default_for(valua_ast::LuaTarget::LuaJIT).run(&block);
 //! ```
 
-use valua_ast::Block;
-use valua_codegen::LuaTarget;
+use valua_ast::{Block, LuaTarget};
 use valua_diagnostics::Diagnostic;
 
 pub mod passes;
@@ -53,8 +52,7 @@ impl LintPipeline {
 
 #[cfg(test)]
 mod tests {
-    use valua_ast::Block;
-    use valua_codegen::LuaTarget;
+    use valua_ast::{Block, LuaTarget};
     use valua_diagnostics::{CollectingReporter, Diagnostic, Reporter, Span};
 
     use super::{Lint, LintPipeline};

@@ -1,4 +1,8 @@
 //! Typed AST for Lua 5.5 — shared by parser, transformer, and code generator.
+//!
+//! Also houses [`LuaTarget`], the cross-cutting compilation-target enum used by
+//! both `valua-lint` and `valua-codegen`. Placing it here avoids an illegal
+//! `valua-lint → valua-codegen` dependency (see architectural note in PRD §6.2).
 
 use valua_diagnostics::Span;
 
@@ -425,4 +429,21 @@ mod tests {
     fn test_binary_op_bitwise_variants() {
         todo!()
     }
+}
+
+// ── Compilation target ────────────────────────────────────────────────────────
+
+/// Target Lua runtime — controls which built-ins and polyfills are assumed available.
+///
+/// Lives in `valua-ast` (not `valua-codegen`) so that both `valua-lint` and
+/// `valua-codegen` can depend on it without creating a cross-layer coupling.
+/// `valua-codegen` re-exports this type as `pub use valua_ast::LuaTarget`.
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LuaTarget {
+    /// Plain Lua 5.1 (PUC reference implementation).
+    #[default]
+    Lua51,
+    /// LuaJIT 2.x — has the `bit` library and some Lua 5.1 extensions.
+    LuaJIT,
 }

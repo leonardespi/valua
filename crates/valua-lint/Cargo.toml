@@ -10,7 +10,6 @@ rust-version.workspace = true
 [dependencies]
 valua-ast         = { workspace = true }
 valua-diagnostics = { workspace = true }
-valua-codegen     = { workspace = true }
 thiserror         = { workspace = true }
 
 [dev-dependencies]
