@@ -1,6 +1,6 @@
 [package]
 name        = "valua-ast"
-description = "Lua 5.4 AST node definitions shared across the valua pipeline"
+description = "Lua 5.5 AST node definitions shared across the valua pipeline (Lua 5.4 is a supported subset)"
 edition.workspace     = true
 version.workspace     = true
 authors.workspace     = true

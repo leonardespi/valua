@@ -1,6 +1,6 @@
 [package]
 name        = "valua-parser"
-description = "Recursive-descent Lua 5.4 parser for the valua transpiler"
+description = "Recursive-descent Lua 5.5 parser for the valua transpiler"
 edition.workspace     = true
 version.workspace     = true
 authors.workspace     = true

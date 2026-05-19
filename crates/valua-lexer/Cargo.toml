@@ -1,6 +1,6 @@
 [package]
 name        = "valua-lexer"
-description = "Lua 5.4 tokenizer for the valua transpiler"
+description = "Lua 5.5 tokenizer for the valua transpiler (Lua 5.4 is a supported subset)"
 edition.workspace     = true
 version.workspace     = true
 authors.workspace     = true

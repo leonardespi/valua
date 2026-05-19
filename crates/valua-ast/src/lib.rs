@@ -1,4 +1,4 @@
-//! Typed AST for Lua 5.4 — shared by parser, transformer, and code generator.
+//! Typed AST for Lua 5.5 — shared by parser, transformer, and code generator.
 
 use valua_diagnostics::Span;
 
@@ -17,7 +17,7 @@ pub struct Block {
 
 // ── Statements ───────────────────────────────────────────────────────────────
 
-/// Every kind of statement in Lua 5.4.
+/// Every kind of statement in Lua 5.5 (Lua 5.4 is a fully supported subset).
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Debug, Clone)]
 pub enum Statement {
@@ -67,12 +67,12 @@ pub struct LocalDecl {
 #[derive(Debug, Clone)]
 pub struct LocalName {
     pub name: String,
-    /// Lua 5.4 `<const>` or `<close>` attribute.
+    /// Lua 5.4/5.5 `<const>` or `<close>` attribute.
     pub attribute: Option<Attribute>,
     pub span: Span,
 }
 
-/// Lua 5.4 variable attributes.
+/// Lua 5.4/5.5 variable attributes.
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Attribute {
@@ -233,7 +233,7 @@ pub struct Param {
 
 // ── Expressions ──────────────────────────────────────────────────────────────
 
-/// All expression forms in Lua 5.4.
+/// All expression forms in Lua 5.5.
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Debug, Clone)]
 pub enum Expression {
@@ -286,7 +286,7 @@ impl Expression {
 
 // ── Operators ────────────────────────────────────────────────────────────────
 
-/// Binary operators in Lua 5.4 (includes bitwise and integer division).
+/// Binary operators in Lua 5.5 (includes bitwise and integer division).
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
@@ -325,7 +325,7 @@ pub enum BinaryOp {
     Concat,
 }
 
-/// Unary operators in Lua 5.4.
+/// Unary operators in Lua 5.5.
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
@@ -346,9 +346,18 @@ pub enum UnaryOp {
 #[derive(Debug, Clone)]
 pub enum Call {
     /// `func(args)`
-    Call { func: Box<Expression>, args: Vec<Expression>, span: Span },
+    Call {
+        func: Box<Expression>,
+        args: Vec<Expression>,
+        span: Span,
+    },
     /// `obj:method(args)`
-    MethodCall { obj: Box<Expression>, method: String, args: Vec<Expression>, span: Span },
+    MethodCall {
+        obj: Box<Expression>,
+        method: String,
+        args: Vec<Expression>,
+        span: Span,
+    },
 }
 
 impl Call {
@@ -374,9 +383,17 @@ pub struct TableConstructor {
 #[derive(Debug, Clone)]
 pub enum TableField {
     /// `[expr] = expr`
-    ExprKey { key: Box<Expression>, value: Box<Expression>, span: Span },
+    ExprKey {
+        key: Box<Expression>,
+        value: Box<Expression>,
+        span: Span,
+    },
     /// `name = expr`
-    NameKey { key: String, value: Box<Expression>, span: Span },
+    NameKey {
+        key: String,
+        value: Box<Expression>,
+        span: Span,
+    },
     /// `expr` (positional)
     Positional(Expression),
 }
