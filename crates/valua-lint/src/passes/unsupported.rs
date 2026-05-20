@@ -3,15 +3,15 @@ use valua_diagnostics::Diagnostic;
 
 use crate::Lint;
 
-/// Detects Lua 5.4 features that cannot be represented in LuaJIT or Lua 5.1.
+/// Detects Lua 5.4 features that cannot be represented in `LuaJIT` or Lua 5.1.
 ///
 /// - E0101: `math.type` — used as call or bare reference; observes integer/float distinction
-///   absent in LuaJIT. Firing on bare references (`local f = math.type`) prevents indirect
+///   absent in `LuaJIT`. Firing on bare references (`local f = math.type`) prevents indirect
 ///   use that bypasses the call-site check.
-/// - E0102: integer literal at `i64::MAX` — overflow semantics differ from LuaJIT (IEEE 754)
+/// - E0102: integer literal at `i64::MAX` — overflow semantics differ from `LuaJIT` (IEEE 754)
 /// - E0103: `math.tointeger` — used as call or bare reference; converts float→integer or
 ///   returns nil, which intrinsically observes the integer/float distinction. Does not exist
-///   in LuaJIT.
+///   in `LuaJIT`.
 pub struct UnsupportedFeatureGuard;
 
 impl Lint for UnsupportedFeatureGuard {
@@ -95,6 +95,9 @@ fn check_expr(expr: &Expression, diags: &mut Vec<Diagnostic>) {
                     *span,
                 )
                 .with_code("E0102")
+                .with_note(
+                    "this literal equals math.maxinteger; Lua 5.4 wraps on overflow but LuaJIT uses IEEE 754 doubles",
+                )
                 .with_suggestion(
                     "Use bit.* operations on the bit pattern explicitly, or accept double-precision semantics",
                 ),
@@ -167,7 +170,7 @@ fn check_call(call: &Call, diags: &mut Vec<Diagnostic>) {
 }
 
 /// Returns true when `base.field` is a numeric type-introspection function that
-/// has no equivalent in LuaJIT — currently `math.type` and `math.tointeger`.
+/// has no equivalent in `LuaJIT` — currently `math.type` and `math.tointeger`.
 fn is_math_numeric_intrinsic(base: &Expression, field: &str) -> bool {
     matches!(base, Expression::Name(n, _) if n == "math") && matches!(field, "type" | "tointeger")
 }
@@ -180,6 +183,9 @@ fn numeric_intrinsic_diagnostic(field: &str, span: valua_diagnostics::Span) -> D
             span,
         )
         .with_code("E0101")
+        .with_note(
+            "math.type() has no equivalent in LuaJIT; all numbers are IEEE 754 doubles",
+        )
         .with_suggestion(
             "Remove type discrimination or track numeric kind explicitly in user data",
         ),
@@ -188,6 +194,9 @@ fn numeric_intrinsic_diagnostic(field: &str, span: valua_diagnostics::Span) -> D
             span,
         )
         .with_code("E0103")
+        .with_note(
+            "math.tointeger() has no equivalent in LuaJIT; all numbers are IEEE 754 doubles",
+        )
         .with_suggestion(
             "Replace with math.floor() if truncation is intended, or restructure to avoid integer/float discrimination",
         ),

@@ -186,6 +186,9 @@ fn check_assign(assign: &Assign, scopes: &[ScopeFrame], diags: &mut Vec<Diagnost
                     )
                     .with_code("E0301")
                     .with_secondary_label(decl_span, "declared as const here")
+                    .with_note(format!(
+                        "`{name}` was declared with <const>; Lua 5.4 treats this as a compile-time constant"
+                    ))
                     .with_suggestion(
                         "Remove the assignment or remove the <const> attribute from the declaration",
                     ),
@@ -200,7 +203,7 @@ fn find_const(scopes: &[ScopeFrame], name: &str) -> Option<Span> {
         match scope.get(name) {
             Some(Some(span)) => return Some(*span),
             Some(None) => return None, // inner non-const shadows outer const
-            None => continue,
+            None => {}
         }
     }
     None
