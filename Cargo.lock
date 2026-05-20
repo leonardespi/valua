@@ -682,7 +682,11 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "pretty_assertions",
+ "valua-ast",
+ "valua-codegen",
  "valua-core",
+ "valua-diagnostics",
+ "valua-parser",
 ]
 
 [[package]]

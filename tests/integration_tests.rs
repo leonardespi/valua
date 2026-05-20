@@ -421,3 +421,175 @@ fn fixture_e0401_post55_feature() {
     assert!(result.is_err(), "expected E0401 compile error");
     // TODO: render diagnostic via ConsoleReporter and compare against expected.txt
 }
+
+// ── UV2: Precedence round-trip adversarial fuzzing ────────────────────────────
+
+mod prec_fuzz {
+    use valua_ast::{BinaryOp, Block, Expression, Return, Statement, UnaryOp};
+    use valua_codegen::{CodeGen, LuaEmitter};
+    use valua_diagnostics::Span;
+
+    // Linear congruential generator — no external crate; deterministic across runs.
+    struct Lcg(u64);
+    impl Lcg {
+        fn new(seed: u64) -> Self {
+            Self(seed)
+        }
+        fn next(&mut self) -> u64 {
+            self.0 = self.0
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            self.0
+        }
+        fn pick(&mut self, n: usize) -> usize {
+            (self.next() >> 33) as usize % n
+        }
+    }
+
+    const BINOPS: &[BinaryOp] = &[
+        BinaryOp::Add,
+        BinaryOp::Sub,
+        BinaryOp::Mul,
+        BinaryOp::Div,
+        BinaryOp::Mod,
+        BinaryOp::Pow,       // right-assoc, highest prec
+        BinaryOp::IDiv,
+        BinaryOp::Lt,
+        BinaryOp::Le,
+        BinaryOp::Gt,
+        BinaryOp::Ge,
+        BinaryOp::Eq,
+        BinaryOp::Ne,
+        BinaryOp::And,
+        BinaryOp::Or,
+        BinaryOp::BitwiseAnd,
+        BinaryOp::BitwiseOr,
+        BinaryOp::BitwiseXor, // `~` same token as unary BitwiseNot
+        BinaryOp::Shl,
+        BinaryOp::Shr,
+        BinaryOp::Concat,     // right-assoc
+    ];
+
+    const UNOPS: &[UnaryOp] = &[
+        UnaryOp::Neg,
+        UnaryOp::Not,
+        UnaryOp::Len,
+        UnaryOp::BitwiseNot,
+    ];
+
+    const NAMES: &[&str] = &["a", "b", "c", "x", "y"];
+
+    fn sp() -> Span {
+        Span::dummy()
+    }
+
+    fn gen_expr(rng: &mut Lcg, depth: u32) -> Expression {
+        // At depth 0, or with 1/3 probability at any depth, emit a leaf.
+        if depth == 0 || rng.pick(3) == 0 {
+            return gen_leaf(rng);
+        }
+        if rng.pick(2) == 0 {
+            let op = BINOPS[rng.pick(BINOPS.len())];
+            Expression::BinOp(
+                Box::new(gen_expr(rng, depth - 1)),
+                op,
+                Box::new(gen_expr(rng, depth - 1)),
+                sp(),
+            )
+        } else {
+            let op = UNOPS[rng.pick(UNOPS.len())];
+            Expression::UnOp(op, Box::new(gen_expr(rng, depth - 1)), sp())
+        }
+    }
+
+    fn gen_leaf(rng: &mut Lcg) -> Expression {
+        if rng.pick(2) == 0 {
+            // Non-negative integers only: the parser always produces
+            // UnOp(Neg, Integer(n)) for negative literals, never Integer(-n),
+            // which would cause a spurious structural mismatch.
+            Expression::Integer(rng.pick(100) as i64, sp())
+        } else {
+            Expression::Name(NAMES[rng.pick(NAMES.len())].to_string(), sp())
+        }
+    }
+
+    fn wrap_return(expr: Expression) -> Block {
+        Block {
+            stmts: vec![Statement::Return(Return {
+                values: vec![expr],
+                span: sp(),
+            })],
+            span: sp(),
+        }
+    }
+
+    fn expr_eq(a: &Expression, b: &Expression) -> bool {
+        match (a, b) {
+            (Expression::Integer(va, _), Expression::Integer(vb, _)) => va == vb,
+            (Expression::Name(na, _), Expression::Name(nb, _)) => na == nb,
+            (Expression::BinOp(la, oa, ra, _), Expression::BinOp(lb, ob, rb, _)) => {
+                oa == ob && expr_eq(la, lb) && expr_eq(ra, rb)
+            }
+            (Expression::UnOp(oa, ea, _), Expression::UnOp(ob, eb, _)) => {
+                oa == ob && expr_eq(ea, eb)
+            }
+            _ => false,
+        }
+    }
+
+    #[test]
+    fn prec_roundtrip_adversarial_1000() {
+        let emitter = LuaEmitter::luajit();
+        let mut failures: Vec<String> = Vec::new();
+
+        for seed in 0u64..1000 {
+            let mut rng = Lcg::new(
+                seed.wrapping_mul(0x9e3779b97f4a7c15)
+                    .wrapping_add(0x6c62272e07bb0142),
+            );
+            let expr = gen_expr(&mut rng, 4);
+            let block = wrap_return(expr.clone());
+
+            let lua_src = match emitter.emit(&block) {
+                Ok(s) => s,
+                Err(e) => {
+                    failures.push(format!("seed {seed}: emit error: {e}"));
+                    continue;
+                }
+            };
+
+            let parsed_block = match valua_parser::parse(&lua_src) {
+                Ok(b) => b,
+                Err(e) => {
+                    failures.push(format!(
+                        "seed {seed}: parse error: {e}\n  lua: {lua_src}"
+                    ));
+                    continue;
+                }
+            };
+
+            let parsed_expr = match parsed_block.stmts.as_slice() {
+                [Statement::Return(r)] if r.values.len() == 1 => &r.values[0],
+                other => {
+                    failures.push(format!(
+                        "seed {seed}: unexpected structure: {other:?}\n  lua: {lua_src}"
+                    ));
+                    continue;
+                }
+            };
+
+            if !expr_eq(&expr, parsed_expr) {
+                failures.push(format!(
+                    "seed {seed}: round-trip mismatch\n  original: {expr:?}\n  parsed:   {parsed_expr:?}\n  lua:      {lua_src}"
+                ));
+            }
+        }
+
+        assert!(
+            failures.is_empty(),
+            "{} failure(s):\n{}",
+            failures.len(),
+            failures.join("\n\n")
+        );
+    }
+}
