@@ -114,7 +114,7 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           # Internal crates first (no inter-crate deps among these)
-          cargo publish --package valua-diagnostics --no-verify
+          cargo publish --package valua-diagnostics --no-verify || true
           sleep 15
           cargo publish --package valua-ast --no-verify
           sleep 15
