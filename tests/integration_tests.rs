@@ -147,7 +147,9 @@ fn normalize(s: &str) -> String {
 }
 
 fn read_file(path: &Path) -> String {
-    fs::read_to_string(path).unwrap_or_else(|_| panic!("cannot read {}", path.display()))
+    fs::read_to_string(path)
+        .unwrap_or_else(|_| panic!("cannot read {}", path.display()))
+        .replace("\r\n", "\n")
 }
 
 // ── Decimal-emission helpers ──────────────────────────────────────────────────
