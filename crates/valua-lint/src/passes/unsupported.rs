@@ -88,7 +88,7 @@ fn check_stmt(stmt: &Statement, diags: &mut Vec<Diagnostic>) {
 
 fn check_expr(expr: &Expression, diags: &mut Vec<Diagnostic>) {
     match expr {
-        Expression::Integer(val, span) if *val == i64::MAX => {
+        Expression::Integer(val, _, span) if *val == i64::MAX => {
             diags.push(
                 Diagnostic::error(
                     "integer overflow semantics differ between Lua 5.4 and LuaJIT",

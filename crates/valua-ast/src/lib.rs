@@ -237,6 +237,20 @@ pub struct Param {
 
 // ── Expressions ──────────────────────────────────────────────────────────────
 
+/// Notation hint for an integer literal, preserved from the source text.
+///
+/// Allows the code-generator to reproduce the original lexeme format instead
+/// of always normalising to decimal.  Synthetic AST nodes (created by
+/// transformer passes, not parsed from source) use [`IntRepr::Decimal`].
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntRepr {
+    /// Plain decimal notation, e.g. `255`.
+    Decimal,
+    /// Hexadecimal notation, e.g. `0xff` (emitted as lowercase).
+    Hex,
+}
+
 /// All expression forms in Lua 5.5.
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[derive(Debug, Clone)]
@@ -244,7 +258,7 @@ pub enum Expression {
     Nil(Span),
     True(Span),
     False(Span),
-    Integer(i64, Span),
+    Integer(i64, IntRepr, Span),
     Float(f64, Span),
     String(String, Span),
     Vararg(Span),
@@ -275,7 +289,7 @@ impl Expression {
             | Expression::True(s)
             | Expression::False(s)
             | Expression::Vararg(s) => *s,
-            Expression::Integer(_, s) => *s,
+            Expression::Integer(_, _, s) => *s,
             Expression::Float(_, s) => *s,
             Expression::String(_, s) => *s,
             Expression::Name(_, s) => *s,
@@ -442,7 +456,7 @@ mod tests {
         assert_eq!(Expression::Nil(s).span(), s);
         assert_eq!(Expression::True(s).span(), s);
         assert_eq!(Expression::False(s).span(), s);
-        assert_eq!(Expression::Integer(42, s).span(), s);
+        assert_eq!(Expression::Integer(42, IntRepr::Decimal, s).span(), s);
         assert_eq!(Expression::Float(1.0, s).span(), s);
         assert_eq!(Expression::String("hi".to_owned(), s).span(), s);
         assert_eq!(Expression::Name("x".to_owned(), s).span(), s);

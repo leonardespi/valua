@@ -38,7 +38,7 @@
 //! to them cannot introduce a cycle.
 
 use valua_ast::{
-    Attribute, BinaryOp, Block, Call, Expression, FunctionBody, If, LocalDecl, LocalName,
+    Attribute, BinaryOp, Block, Call, Expression, FunctionBody, If, IntRepr, LocalDecl, LocalName,
     LuaTarget, Return, Statement, TableField, UnaryOp,
 };
 use valua_diagnostics::Span;
@@ -789,7 +789,7 @@ fn process_close_at(block: &mut Block, i: usize) -> Result<(), TransformError> {
                 func: Box::new(Expression::Name("error".to_string(), d)),
                 args: vec![
                     Expression::Name("__valua_result".to_string(), d),
-                    Expression::Integer(0, d),
+                    Expression::Integer(0, IntRepr::Decimal, d),
                 ],
                 span: d,
             }))],

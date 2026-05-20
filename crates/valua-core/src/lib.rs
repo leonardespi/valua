@@ -5,7 +5,7 @@ use valua_codegen::{EmitOptions, LuaTarget};
 pub use error::CompileError;
 
 // Re-export public types consumers are likely to need.
-pub use valua_ast::{Attribute, BinaryOp, Block, Expression, Statement, UnaryOp};
+pub use valua_ast::{Attribute, BinaryOp, Block, Expression, IntRepr, Statement, UnaryOp};
 pub use valua_codegen::{EmitOptions as CodeGenOptions, LuaTarget as Target};
 pub use valua_diagnostics::{Diagnostic, Severity, Span};
 pub use valua_polyfills::FeatureSet;

@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn test_lexes_hex_integer() {
         let tokens = lex("0xFF");
-        assert_eq!(tokens[0], Token::Integer(0xFF));
+        assert_eq!(tokens[0], Token::HexInteger(0xFF));
     }
 
     #[test]

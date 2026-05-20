@@ -3,7 +3,9 @@
 // scatter the grammar and hurt readability.
 #![allow(clippy::too_many_lines)]
 
-use valua_ast::{BinaryOp, Block, Call, Expression, FunctionBody, Statement, TableField, UnaryOp};
+use valua_ast::{
+    BinaryOp, Block, Call, Expression, FunctionBody, IntRepr, Statement, TableField, UnaryOp,
+};
 
 pub use error::CodeGenError;
 
@@ -428,8 +430,17 @@ impl<'opts> EmitContext<'opts> {
             Expression::True(_) => self.push("true"),
             Expression::False(_) => self.push("false"),
             Expression::Vararg(_) => self.push("..."),
-            Expression::Integer(v, _) => {
-                let s = v.to_string();
+            Expression::Integer(v, repr, _) => {
+                let s = match repr {
+                    IntRepr::Decimal => v.to_string(),
+                    IntRepr::Hex => {
+                        if *v < 0 {
+                            format!("-0x{:x}", v.unsigned_abs())
+                        } else {
+                            format!("0x{:x}", v)
+                        }
+                    }
+                };
                 self.push(&s);
             }
             Expression::Float(f, span) => {
@@ -629,7 +640,11 @@ mod tests {
     }
 
     fn int_expr(v: i64) -> Expression {
-        Expression::Integer(v, valua_diagnostics::Span::dummy())
+        Expression::Integer(v, IntRepr::Decimal, valua_diagnostics::Span::dummy())
+    }
+
+    fn hex_expr(v: i64) -> Expression {
+        Expression::Integer(v, IntRepr::Hex, valua_diagnostics::Span::dummy())
     }
 
     fn float_expr(v: f64) -> Expression {
@@ -637,13 +652,19 @@ mod tests {
     }
 
     #[test]
-    fn integer_emitted_as_plain_decimal() {
+    fn decimal_integer_emits_as_decimal() {
         assert_eq!(emit_expr(int_expr(0)).unwrap(), "0");
         assert_eq!(emit_expr(int_expr(42)).unwrap(), "42");
         assert_eq!(emit_expr(int_expr(-1)).unwrap(), "-1");
         assert_eq!(emit_expr(int_expr(255)).unwrap(), "255");
-        // Source hex literal 0xFF → stored as i64(255) → emitted as "255", never "0xff".
-        // This is the decimal-only invariant (PRD §TD1).
+    }
+
+    #[test]
+    fn hex_integer_emits_as_lowercase_hex() {
+        assert_eq!(emit_expr(hex_expr(0)).unwrap(), "0x0");
+        assert_eq!(emit_expr(hex_expr(255)).unwrap(), "0xff");
+        assert_eq!(emit_expr(hex_expr(0xFF00)).unwrap(), "0xff00");
+        assert_eq!(emit_expr(hex_expr(0xDEAD_BEEF)).unwrap(), "0xdeadbeef");
     }
 
     #[test]

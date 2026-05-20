@@ -1,7 +1,7 @@
 use valua_ast::{
     Assign, Attribute, BinaryOp, Block, Call, Do, ElseIf, Expression, FunctionBody, FunctionDecl,
-    FunctionName, GenericFor, Goto, If, Label, LocalDecl, LocalFunctionDecl, LocalName, NumericFor,
-    Param, Repeat, Return, Statement, TableConstructor, TableField, UnaryOp, While,
+    FunctionName, GenericFor, Goto, If, IntRepr, Label, LocalDecl, LocalFunctionDecl, LocalName,
+    NumericFor, Param, Repeat, Return, Statement, TableConstructor, TableField, UnaryOp, While,
 };
 use valua_diagnostics::Span;
 use valua_lexer::{Lexer, SpannedToken, Token};
@@ -608,7 +608,11 @@ impl Parser {
             }
             Token::Integer(n) => {
                 self.advance();
-                Ok(Expression::Integer(n, s))
+                Ok(Expression::Integer(n, IntRepr::Decimal, s))
+            }
+            Token::HexInteger(n) => {
+                self.advance();
+                Ok(Expression::Integer(n, IntRepr::Hex, s))
             }
             Token::Float(f) => {
                 self.advance();
@@ -768,7 +772,7 @@ fn adjust_span(expr: Expression, span: Span) -> Expression {
         Expression::Nil(_) => Expression::Nil(span),
         Expression::True(_) => Expression::True(span),
         Expression::False(_) => Expression::False(span),
-        Expression::Integer(v, _) => Expression::Integer(v, span),
+        Expression::Integer(v, repr, _) => Expression::Integer(v, repr, span),
         Expression::Float(v, _) => Expression::Float(v, span),
         Expression::String(v, _) => Expression::String(v, span),
         Expression::Vararg(_) => Expression::Vararg(span),
@@ -824,7 +828,7 @@ mod tests {
         assert!(matches!(block.stmts[0], Statement::LocalDecl(_)));
         if let Statement::LocalDecl(d) = &block.stmts[0] {
             assert_eq!(d.names[0].name, "x");
-            assert!(matches!(d.values[0], Expression::Integer(1, _)));
+            assert!(matches!(d.values[0], Expression::Integer(1, _, _)));
         }
     }
 

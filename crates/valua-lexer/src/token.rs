@@ -364,7 +364,10 @@ pub enum Token {
     Float(f64),
 
     // Hex int must come before decimal int.
+    // Two distinct variants so the parser can propagate the notation hint to the AST.
     #[regex(r"0[xX][0-9a-fA-F]+", parse_hex_int)]
+    HexInteger(i64),
+
     #[regex(r"[0-9]+", parse_dec_int)]
     Integer(i64),
 
