@@ -41,6 +41,27 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-cargo-
 
+      - name: Install LuaJIT (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y luajit
+        continue-on-error: true
+
+      - name: Install LuaJIT (macOS)
+        if: runner.os == 'macOS'
+        run: brew install luajit
+        continue-on-error: true
+
+      - name: Install LuaJIT (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install luajit --yes --no-progress
+          # Ensure the choco-managed binary directory is on PATH for subsequent steps.
+          Add-Content $env:GITHUB_PATH "C:\ProgramData\chocolatey\bin"
+        continue-on-error: true
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
