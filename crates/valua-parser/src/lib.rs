@@ -34,15 +34,13 @@ impl Parser {
     fn peek(&self) -> &Token {
         self.tokens
             .get(self.pos)
-            .map(|st| &st.token)
-            .unwrap_or(&Token::Eof)
+            .map_or(&Token::Eof, |st| &st.token)
     }
 
     fn peek_span(&self) -> Span {
         self.tokens
             .get(self.pos)
-            .map(|st| st.span)
-            .unwrap_or(Span::dummy())
+            .map_or_else(Span::dummy, |st| st.span)
     }
 
     fn advance(&mut self) -> &SpannedToken {
@@ -242,7 +240,7 @@ impl Parser {
         if self.consume_if(&Token::Assign).is_some() {
             values = self.parse_expr_list()?;
         }
-        let end_span = values.last().map(|e| e.span()).unwrap_or(start);
+        let end_span = values.last().map_or(start, Expression::span);
         Ok(LocalDecl {
             names,
             values,
@@ -436,7 +434,7 @@ impl Parser {
         } else {
             self.parse_expr_list()?
         };
-        let end = values.last().map(|e| e.span()).unwrap_or(s);
+        let end = values.last().map_or(s, Expression::span);
         Ok(Return {
             values,
             span: s.merge(end),
@@ -455,7 +453,7 @@ impl Parser {
             self.expect(&Token::Assign)?;
             let values = self.parse_expr_list()?;
             let span_start = targets[0].span();
-            let span_end = values.last().map(|e| e.span()).unwrap_or(span_start);
+            let span_end = values.last().map_or(span_start, Expression::span);
             Ok(Statement::Assign(Assign {
                 targets,
                 values,

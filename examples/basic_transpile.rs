@@ -5,14 +5,14 @@
 use valua_core::{CompileOptions, Compiler};
 
 fn main() {
-    let source = r#"
+    let source = r"
 -- Lua 5.4 source: bitwise ops + <const> + integer division
 local x <const> = 10
 local y <const> = 3
 local bits = x & y        -- bitwise AND
 local idiv = x // y       -- integer division
 print(bits, idiv)
-"#;
+";
 
     // ── Example 1: default options (Lua 5.1) ─────────────────────────────────
     let opts = CompileOptions::default();

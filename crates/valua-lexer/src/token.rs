@@ -1,3 +1,17 @@
+// See the module-level allow list in lib.rs for explanations.
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::too_many_lines,
+    clippy::match_same_arms,
+    clippy::unnested_or_patterns,
+    clippy::manual_let_else,
+    clippy::single_match_else,
+    clippy::bool_to_int_with_if,
+    clippy::elidable_lifetime_names
+)]
+
 use logos::{Filter, Logos};
 
 // ── Error-tracking extras ─────────────────────────────────────────────────────

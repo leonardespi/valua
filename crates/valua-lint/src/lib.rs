@@ -28,8 +28,9 @@ impl LintPipeline {
     /// Default lint pipeline for `target`.
     ///
     /// - `ConstMutation` (E0301) runs for all targets.
-    /// - `UnsupportedFeatureGuard` (E0101, E0102) runs for Lua 5.1 and LuaJIT,
+    /// - `UnsupportedFeatureGuard` (E0101, E0102) runs for Lua 5.1 and `LuaJIT`,
     ///   which both lack `math.type` and differ in integer overflow semantics.
+    #[must_use]
     pub fn default_for(target: LuaTarget) -> Self {
         let mut passes: Vec<Box<dyn Lint>> = vec![Box::new(ConstMutation)];
         match target {
@@ -41,6 +42,7 @@ impl LintPipeline {
     }
 
     /// Run all passes and return all diagnostics in pass order.
+    #[must_use]
     pub fn run(&self, block: &Block) -> Vec<Diagnostic> {
         let mut out = Vec::new();
         for pass in &self.passes {

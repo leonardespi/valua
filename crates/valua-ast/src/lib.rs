@@ -267,6 +267,8 @@ pub enum Expression {
 
 impl Expression {
     /// Returns the span of this expression.
+    #[must_use]
+    #[allow(clippy::match_same_arms)]
     pub fn span(&self) -> Span {
         match self {
             Expression::Nil(s)
@@ -365,6 +367,7 @@ pub enum Call {
 }
 
 impl Call {
+    #[must_use]
     pub fn span(&self) -> Span {
         match self {
             Call::Call { span, .. } | Call::MethodCall { span, .. } => *span,
@@ -444,6 +447,6 @@ pub enum LuaTarget {
     /// Plain Lua 5.1 (PUC reference implementation).
     #[default]
     Lua51,
-    /// LuaJIT 2.x — has the `bit` library and some Lua 5.1 extensions.
+    /// `LuaJIT` 2.x — has the `bit` library and some Lua 5.1 extensions.
     LuaJIT,
 }

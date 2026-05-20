@@ -1,10 +1,10 @@
 //! Embedded Lua polyfill strings injected during Lua 5.5 → 5.1 transpilation.
 
-/// Bitwise operation emulation for pure Lua 5.1 (no native bit library).
+/// Bitwise operation emulation for pure Lua 5.1 (no native `bit` library).
 ///
 /// Covers: `band`, `bor`, `bxor`, `bnot`, `lshift`, `rshift`.
-/// Semantics match LuaJIT's `bit` library: 32-bit signed integer domain.
-pub const BITWISE_FALLBACK: &str = r#"local _bU=0x100000000
+/// Semantics match `LuaJIT`'s `bit` library: 32-bit signed integer domain.
+pub const BITWISE_FALLBACK: &str = r"local _bU=0x100000000
 local _bS=0x80000000
 local function _bu(n) n=math.floor(n)%_bU if n<0 then n=n+_bU end return n end
 local function _bs(n) n=_bu(n) if n>=_bS then n=n-_bU end return n end
@@ -14,7 +14,7 @@ function bit.bor(a,b) a=_bu(a) b=_bu(b) local r=0 local m=1 while a>0 or b>0 do 
 function bit.bxor(a,b) a=_bu(a) b=_bu(b) local r=0 local m=1 while a>0 or b>0 do if a%2~=b%2 then r=r+m end a=math.floor(a/2) b=math.floor(b/2) m=m*2 end return _bs(r) end
 function bit.bnot(a) return _bs(0xFFFFFFFF-_bu(a)) end
 function bit.lshift(a,n) n=n%32 a=_bu(a) for _=1,n do a=(a*2)%_bU end return _bs(a) end
-function bit.rshift(a,n) n=n%32 a=_bu(a) for _=1,n do a=math.floor(a/2) end return _bs(a) end"#;
+function bit.rshift(a,n) n=n%32 a=_bu(a) for _=1,n do a=math.floor(a/2) end return _bs(a) end";
 
 /// Runtime helper for `<close>` attribute semantics (deferred cleanup via pcall).
 pub const CLOSE_RUNTIME: &str = "";
@@ -28,12 +28,13 @@ pub const MATH_EXTENSIONS: &str = "";
 
 /// Flags indicating which Lua 5.5 features are used in a translation unit.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct FeatureSet {
     /// Any of `&`, `|`, `~` (binary xor), `~` (unary not), `<<`, `>>`.
     pub bitwise_ops: bool,
     /// Any `local x <close>` declaration.
     pub close_attribute: bool,
-    /// `//` integer division (Lua 5.3+, absent in Lua 5.1 / LuaJIT).
+    /// `//` integer division (Lua 5.3+, absent in Lua 5.1/LuaJIT).
     pub integer_div: bool,
     pub string_extensions: bool,
     pub math_extensions: bool,
@@ -41,6 +42,7 @@ pub struct FeatureSet {
 
 impl FeatureSet {
     /// Returns `true` if no polyfills are needed.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         !self.bitwise_ops
             && !self.close_attribute
@@ -53,6 +55,7 @@ impl FeatureSet {
 /// Concatenates the polyfill strings required by `features` into a single Lua chunk.
 ///
 /// Returns an empty string when no features are active.
+#[must_use]
 pub fn polyfills_for(features: &FeatureSet) -> String {
     let mut parts: Vec<&'static str> = Vec::new();
 

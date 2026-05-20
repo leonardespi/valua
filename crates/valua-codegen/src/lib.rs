@@ -1,4 +1,7 @@
 //! Lua 5.1 code emitter — walks a transformed AST and produces formatted source.
+// emit_statement and emit_expr_inner are large dispatch functions — splitting them would
+// scatter the grammar and hurt readability.
+#![allow(clippy::too_many_lines)]
 
 use valua_ast::{BinaryOp, Block, Call, Expression, FunctionBody, Statement, TableField, UnaryOp};
 
@@ -47,16 +50,18 @@ pub trait CodeGen {
 
 // ── Emitter ───────────────────────────────────────────────────────────────────
 
-/// Concrete Lua 5.1 / LuaJIT emitter.
+/// Concrete Lua 5.1 / `LuaJIT` emitter.
 pub struct LuaEmitter {
     pub options: EmitOptions,
 }
 
 impl LuaEmitter {
+    #[must_use]
     pub fn new(options: EmitOptions) -> Self {
         Self { options }
     }
 
+    #[must_use]
     pub fn lua51() -> Self {
         Self::new(EmitOptions {
             target: LuaTarget::Lua51,
@@ -64,6 +69,7 @@ impl LuaEmitter {
         })
     }
 
+    #[must_use]
     pub fn luajit() -> Self {
         Self::new(EmitOptions {
             target: LuaTarget::LuaJIT,
@@ -446,7 +452,7 @@ impl<'opts> EmitContext<'opts> {
                         span: *span,
                     });
                 }
-                let s = format!("{}", f);
+                let s = f.to_string();
                 self.push(&s);
                 if !s.contains('.') && !s.contains('e') && !s.contains('E') {
                     self.push(".0");

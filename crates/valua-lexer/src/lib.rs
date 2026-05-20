@@ -1,3 +1,24 @@
+// Lexer uses intentional patterns that trigger pedantic lints.
+// cast_*: lexer converts byte offsets (usize/u64) to span fields (u32/i64) — casts are bounded by
+//   source length which is i32::MAX max; the precision loss in u64→f64 is expected for float
+//   literals (mirrors Lua's own conversion).
+// match_same_arms / unnested_or_patterns / manual_let_else / single_match_else / bool_to_int_with_if:
+//   logos-callback style produces these patterns; rewriting would sacrifice clarity.
+// too_many_lines: the `next_token` dispatch function maps every Lua token; extraction would obscure
+//   the grammar at a glance.
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::too_many_lines,
+    clippy::match_same_arms,
+    clippy::unnested_or_patterns,
+    clippy::manual_let_else,
+    clippy::single_match_else,
+    clippy::bool_to_int_with_if,
+    clippy::elidable_lifetime_names
+)]
+
 use logos::Logos;
 use valua_diagnostics::Span;
 
@@ -43,6 +64,7 @@ pub struct SpannedToken {
 }
 
 impl SpannedToken {
+    #[must_use]
     pub fn new(token: Token, span: Span) -> Self {
         Self { token, span }
     }
@@ -54,6 +76,7 @@ pub struct Lexer<'src> {
 }
 
 impl<'src> Lexer<'src> {
+    #[must_use]
     pub fn new(source: &'src str) -> Self {
         Self { source }
     }

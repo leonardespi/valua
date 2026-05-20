@@ -71,6 +71,7 @@ pub struct TransformPipeline {
 }
 
 impl TransformPipeline {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -101,6 +102,7 @@ pub struct FeatureDetector {
 }
 
 impl FeatureDetector {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -108,6 +110,7 @@ impl FeatureDetector {
     /// Walk `block` and return the set of Lua 5.5 features used.
     ///
     /// Pure read-only traversal — does not allocate beyond the returned `FeatureSet`.
+    #[must_use]
     pub fn detect(block: &Block) -> FeatureSet {
         let mut fs = FeatureSet::default();
         detect_block(block, &mut fs);
@@ -714,6 +717,7 @@ fn transform_close_block(block: &mut Block) -> Result<(), TransformError> {
     Ok(())
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn process_close_at(block: &mut Block, i: usize) -> Result<(), TransformError> {
     let var_name = if let Statement::LocalDecl(d) = &block.stmts[i] {
         d.names
@@ -948,7 +952,7 @@ impl Transform for BitwiseOpTransform {
 ///
 /// # Why `math.floor(a / b)` and not an integer truncation or cast
 ///
-/// LuaJIT JIT-compiles `math.floor()` on float register paths to a single
+/// `LuaJIT` JIT-compiles `math.floor()` on float register paths to a single
 /// `ROUNDSD` machine instruction; the preceding float division (`/`) is
 /// likewise JIT-compiled.  The combined pattern is therefore a two-instruction
 /// native trace — identical throughput to a native `//` operator, with no
@@ -1007,8 +1011,8 @@ impl Transform for ConstAttributeValidator {
 ///
 /// # Why `pcall` (PRD §2.3, §6.3, Anexo A — Lema 3)
 ///
-/// Preserving `<close>` semantics natively in LuaJIT requires emulating the
-/// to-be-closed mechanism, which LuaJIT's VM does not implement.  The `pcall`
+/// Preserving `<close>` semantics natively in `LuaJIT` requires emulating the
+/// to-be-closed mechanism, which `LuaJIT`'s VM does not implement.  The `pcall`
 /// wrapper is the correct emulation because:
 ///
 /// - The slowdown factor `c ∈ [20, 100]` proven in Lema 3 applies **only to
@@ -1231,12 +1235,14 @@ pub struct PolyfillInjector {
 }
 
 impl PolyfillInjector {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Pre-supply a `FeatureSet` computed by a prior `FeatureDetector` pass.
     /// Target defaults to `Lua51` — all applicable polyfills are injected.
+    #[must_use]
     pub fn with_features(fs: FeatureSet) -> Self {
         Self {
             feature_set: Some(fs),
@@ -1247,8 +1253,9 @@ impl PolyfillInjector {
     /// Pre-supply a `FeatureSet` and a `LuaTarget`.
     ///
     /// The injector will suppress polyfills that `target` already provides natively
-    /// (e.g., LuaJIT ships the `bit` library, so `BITWISE_FALLBACK` is not injected).
+    /// (e.g., `LuaJIT` ships the `bit` library, so `BITWISE_FALLBACK` is not injected).
     /// This is the constructor to use inside `Compiler::compile` where the target is known.
+    #[must_use]
     pub fn with_features_for_target(fs: FeatureSet, target: LuaTarget) -> Self {
         Self {
             feature_set: Some(fs),
@@ -1316,6 +1323,7 @@ fn suppress_native_features(mut fs: FeatureSet, target: LuaTarget) -> FeatureSet
 /// 4. `IntegerDivisionTransform`   — `//` → `math.floor(a / b)`
 /// 5. `CloseAttributeTransform`    — `<close>` locals → `pcall` wrappers
 /// 6. `PolyfillInjector`           — prepend polyfill preamble last
+#[must_use]
 pub fn default_pipeline() -> TransformPipeline {
     let mut pipeline = TransformPipeline::new();
     pipeline
