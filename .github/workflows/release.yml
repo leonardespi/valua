@@ -113,29 +113,18 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          # Internal crates first (no inter-crate deps among these)
-          cargo publish --package valua-diagnostics --no-verify || true
-          sleep 15
-          cargo publish --package valua-ast --no-verify
-          sleep 15
-          cargo publish --package valua-lexer --no-verify
-          sleep 15
-          cargo publish --package valua-polyfills --no-verify
-          sleep 15
-          # Parser depends on diagnostics + ast + lexer
-          cargo publish --package valua-parser --no-verify
-          sleep 15
-          # Lint depends on parser + diagnostics + ast
-          cargo publish --package valua-lint --no-verify
-          sleep 15
-          # Codegen depends on ast + diagnostics
-          cargo publish --package valua-codegen --no-verify
-          sleep 15
-          # Transformer depends on ast + diagnostics + codegen + polyfills + parser
-          cargo publish --package valua-transformer --no-verify
-          sleep 15
-          # Core depends on everything
-          cargo publish --package valua-core --no-verify
-          sleep 15
-          # CLI depends on core
-          cargo publish --package valua-cli --no-verify
+          publish() {
+            cargo publish --package "$1" --no-verify 2>&1 | tee /tmp/pub.log
+            grep -q "already exists" /tmp/pub.log && echo "skipped (already published)" || true
+            sleep 30
+          }
+          publish valua-diagnostics
+          publish valua-ast
+          publish valua-lexer
+          publish valua-polyfills
+          publish valua-parser
+          publish valua-lint
+          publish valua-codegen
+          publish valua-transformer
+          publish valua-core
+          publish valua-cli
