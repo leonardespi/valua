@@ -106,11 +106,11 @@ fn build_cases() -> Vec<Case> {
         -1,
         127,
         -128,
-        2_147_483_647,   // i32::MAX (0x7FFF_FFFF)
-        -2_147_483_648,  // i32::MIN (0x8000_0000 as signed)
-        4_294_967_295,   // 0xFFFF_FFFF — out of i32 range, tests _bu masking
-        252_645_135,     // 0x0F0F_0F0F — alternating nibbles
-        2_863_311_530,   // 0xAAAA_AAAA — > i32::MAX, tests _bs sign-extension
+        2_147_483_647,  // i32::MAX (0x7FFF_FFFF)
+        -2_147_483_648, // i32::MIN (0x8000_0000 as signed)
+        4_294_967_295,  // 0xFFFF_FFFF — out of i32 range, tests _bu masking
+        252_645_135,    // 0x0F0F_0F0F — alternating nibbles
+        2_863_311_530,  // 0xAAAA_AAAA — > i32::MAX, tests _bs sign-extension
     ];
     let shifts: &[i64] = &[0, 1, 7, 8, 15, 16, 24, 31];
 

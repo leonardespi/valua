@@ -413,11 +413,17 @@ mod tests {
 
     #[test]
     fn test_block_construction() {
-        let empty = Block { stmts: vec![], span: Span::dummy() };
+        let empty = Block {
+            stmts: vec![],
+            span: Span::dummy(),
+        };
         assert!(empty.stmts.is_empty());
 
         let stmt = Statement::Break(Span::dummy());
-        let one = Block { stmts: vec![stmt], span: Span::dummy() };
+        let one = Block {
+            stmts: vec![stmt],
+            span: Span::dummy(),
+        };
         assert_eq!(one.stmts.len(), 1);
         assert!(matches!(one.stmts[0], Statement::Break(_)));
     }
