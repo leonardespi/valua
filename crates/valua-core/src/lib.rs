@@ -36,7 +36,14 @@ impl Default for CompileOptions {
 }
 
 impl CompileOptions {
-    /// Convenience builder targeting LuaJIT.
+    /// Convenience builder targeting Lua 5.1.
+    #[must_use]
+    pub fn lua51() -> Self {
+        Self::default()
+    }
+
+    /// Convenience builder targeting `LuaJIT`.
+    #[must_use]
     pub fn luajit() -> Self {
         Self {
             target: LuaTarget::LuaJIT,
@@ -95,7 +102,10 @@ impl Compiler {
             .add_pass(BitwiseOpTransform)
             .add_pass(IntegerDivisionTransform)
             .add_pass(CloseAttributeTransform)
-            .add_pass(PolyfillInjector::with_features_for_target(features, opts.target));
+            .add_pass(PolyfillInjector::with_features_for_target(
+                features,
+                opts.target,
+            ));
         pipeline.run(&mut block)?;
 
         let emitter = LuaEmitter::new(opts.emit);

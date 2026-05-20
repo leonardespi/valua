@@ -111,7 +111,8 @@ fn cmd_build(input: PathBuf, output: Option<PathBuf>, target: TargetArg) -> Resu
             // No output path — write transpiled source to stdout for pipeline use.
             let stdout = std::io::stdout();
             let mut out = std::io::BufWriter::new(stdout.lock());
-            out.write_all(lua.as_bytes()).context("failed to write to stdout")?;
+            out.write_all(lua.as_bytes())
+                .context("failed to write to stdout")?;
         }
     }
 
@@ -145,19 +146,33 @@ fn atomic_write(path: &Path, content: &str) -> Result<()> {
         return Err(e).with_context(|| format!("failed to write '{}'", path.display()));
     }
 
-    std::fs::rename(&tmp, path)
-        .with_context(|| format!("failed to finalize '{}'", path.display()))
+    std::fs::rename(&tmp, path).with_context(|| format!("failed to finalize '{}'", path.display()))
 }
 
 fn cmd_check(input: PathBuf) -> Result<()> {
     let source = std::fs::read_to_string(&input)
         .with_context(|| format!("failed to read '{}'", input.display()))?;
 
-    info!(input = %input.display(), "checking syntax");
+    info!(input = %input.display(), "checking");
 
-    // TODO: call Compiler::parse_only and report diagnostics
-    let _block = Compiler::parse_only(&source);
-    todo!("report diagnostics and exit with appropriate code")
+    let opts = CompileOptions::default();
+    let filename = input.to_string_lossy();
+    let mut reporter = ConsoleReporter::stderr();
+
+    match Compiler::compile(&source, opts) {
+        Ok(_) => {}
+        Err(valua_core::CompileError::Lint(diags)) => {
+            for d in &diags {
+                reporter.report(d, &source, &filename);
+            }
+            std::process::exit(1);
+        }
+        Err(e) => {
+            return Err(e).with_context(|| format!("check failed: '{}'", input.display()));
+        }
+    }
+
+    Ok(())
 }
 
 fn cmd_lint(input: PathBuf, target: TargetArg) -> Result<()> {
