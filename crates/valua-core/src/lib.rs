@@ -126,20 +126,23 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "TODO: test_compile_empty_source — empty string produces empty output"]
     fn test_compile_empty_source() {
-        todo!()
+        let result = Compiler::compile("", CompileOptions::default());
+        assert_eq!(result.expect("empty source should compile"), "");
     }
 
     #[test]
-    #[ignore = "TODO: test_compile_options_default — default options target Lua 5.1"]
     fn test_compile_options_default() {
-        todo!()
+        let opts = CompileOptions::default();
+        assert_eq!(opts.target, Target::Lua51);
+        assert!(opts.inject_polyfills);
+        assert_eq!(CompileOptions::lua51().target, Target::Lua51);
     }
 
     #[test]
-    #[ignore = "TODO: test_parse_only_returns_block — parse_only produces a Block"]
     fn test_parse_only_returns_block() {
-        todo!()
+        let block = Compiler::parse_only("local x = 1").expect("parse failed");
+        assert_eq!(block.stmts.len(), 1);
+        assert!(matches!(block.stmts[0], Statement::LocalDecl(_)));
     }
 }

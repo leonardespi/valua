@@ -43,7 +43,7 @@ fn discover_success_fixtures() -> Vec<(String, PathBuf)> {
             .and_then(|s| s.to_str())
             .map(String::from)
             .expect("UTF-8 name");
-        if matches!(name.as_str(), "errors" | "backends") {
+        if matches!(name.as_str(), "errors" | "backends" | "lua51") {
             continue;
         }
         let input = path.join("input.lua");
@@ -380,6 +380,26 @@ fn fixture_close_attribute_error_path() {
     assert_eq!(normalize(&actual), expected);
 }
 
+#[test]
+fn fixture_close_attribute_multi() {
+    let root = Path::new(FIXTURE_ROOT).join("close_attribute_multi");
+    let input = read_file(&root.join("input.lua"));
+    let expected = normalize(&read_file(&root.join("expected.lua")));
+    let actual = Compiler::compile(&input, CompileOptions::luajit()).expect("compile failed");
+    assert_eq!(normalize(&actual), expected);
+}
+
+// ── Lua 5.1 target fixtures ───────────────────────────────────────────────────
+
+#[test]
+fn fixture_bitwise_and_lua51() {
+    let root = Path::new(FIXTURE_ROOT).join("lua51").join("bitwise_and");
+    let input = read_file(&root.join("input.lua"));
+    let expected = normalize(&read_file(&root.join("expected.lua")));
+    let actual = Compiler::compile(&input, CompileOptions::lua51()).expect("compile failed");
+    assert_eq!(normalize(&actual), expected);
+}
+
 // ── Error fixture tests ───────────────────────────────────────────────────────
 
 fn render_lint_diagnostics(source: &str, err: valua_core::CompileError) -> String {
@@ -446,15 +466,23 @@ fn fixture_e0301_const_mutation() {
 }
 
 #[test]
-#[ignore = "forward-looking: post-Lua-5.5 source support not yet in scope for 1.0; see PRD §14 Pivote A"]
 fn fixture_e0401_post55_feature() {
     let root = Path::new(FIXTURE_ROOT)
         .join("errors")
         .join("E0401_post55_feature");
     let input = read_file(&root.join("input.lua"));
-    let result = Compiler::compile(&input, CompileOptions::luajit());
-    assert!(result.is_err(), "expected E0401 compile error");
-    // TODO: render diagnostic via ConsoleReporter and compare against expected.txt
+    let err = Compiler::compile(&input, CompileOptions::luajit())
+        .expect_err("expected E0401 compile error");
+    // Unknown attribute is a parse error (not a lint diagnostic).
+    assert!(
+        matches!(err, valua_core::CompileError::Parse(_)),
+        "expected CompileError::Parse for unknown attribute, got: {err:?}"
+    );
+    // Error message must name the unrecognized attribute.
+    assert!(
+        err.to_string().contains("future_attr"),
+        "error should identify the unknown attribute: {err}"
+    );
 }
 
 // ── UV2: Precedence round-trip adversarial fuzzing ────────────────────────────

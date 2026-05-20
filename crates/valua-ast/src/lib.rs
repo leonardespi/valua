@@ -407,30 +407,55 @@ pub enum TableField {
 
 #[cfg(test)]
 mod tests {
+    use valua_diagnostics::Span;
+
     use super::*;
 
     #[test]
-    #[ignore = "TODO: verify Block can be constructed and iterated"]
     fn test_block_construction() {
-        todo!()
+        let empty = Block { stmts: vec![], span: Span::dummy() };
+        assert!(empty.stmts.is_empty());
+
+        let stmt = Statement::Break(Span::dummy());
+        let one = Block { stmts: vec![stmt], span: Span::dummy() };
+        assert_eq!(one.stmts.len(), 1);
+        assert!(matches!(one.stmts[0], Statement::Break(_)));
     }
 
     #[test]
-    #[ignore = "TODO: verify Attribute variants are distinct"]
     fn test_attribute_variants() {
-        todo!()
+        assert_eq!(Attribute::Const, Attribute::Const);
+        assert_eq!(Attribute::Close, Attribute::Close);
+        assert_ne!(Attribute::Const, Attribute::Close);
+        assert!(matches!(Some(Attribute::Const), Some(Attribute::Const)));
     }
 
     #[test]
-    #[ignore = "TODO: Expression::span() returns the correct span for each variant"]
     fn test_expression_span() {
-        todo!()
+        let s = Span::dummy();
+        assert_eq!(Expression::Nil(s).span(), s);
+        assert_eq!(Expression::True(s).span(), s);
+        assert_eq!(Expression::False(s).span(), s);
+        assert_eq!(Expression::Integer(42, s).span(), s);
+        assert_eq!(Expression::Float(1.0, s).span(), s);
+        assert_eq!(Expression::String("hi".to_owned(), s).span(), s);
+        assert_eq!(Expression::Name("x".to_owned(), s).span(), s);
+        assert_eq!(Expression::Vararg(s).span(), s);
     }
 
     #[test]
-    #[ignore = "TODO: BinaryOp includes all bitwise variants"]
     fn test_binary_op_bitwise_variants() {
-        todo!()
+        let ops = [
+            BinaryOp::BitwiseAnd,
+            BinaryOp::BitwiseOr,
+            BinaryOp::BitwiseXor,
+            BinaryOp::Shl,
+            BinaryOp::Shr,
+        ];
+        assert_eq!(ops.len(), 5);
+        assert_ne!(BinaryOp::BitwiseAnd, BinaryOp::BitwiseOr);
+        assert_ne!(BinaryOp::Shl, BinaryOp::Shr);
+        assert_ne!(BinaryOp::IDiv, BinaryOp::Div);
     }
 }
 
