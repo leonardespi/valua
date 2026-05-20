@@ -700,6 +700,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "valua-bench"
+version = "0.1.0"
+dependencies = [
+ "valua-core",
+]
+
+[[package]]
 name = "valua-cli"
 version = "0.1.0"
 dependencies = [

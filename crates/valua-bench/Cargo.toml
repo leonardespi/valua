@@ -1,0 +1,15 @@
+[package]
+name        = "valua-bench"
+description = "Trilateral performance benchmarking harness for valua"
+edition.workspace     = true
+version.workspace     = true
+authors.workspace     = true
+license.workspace     = true
+rust-version.workspace = true
+
+[[bin]]
+name = "trilateral-perf"
+path = "src/main.rs"
+
+[dependencies]
+valua-core = { workspace = true }

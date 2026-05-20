@@ -10,6 +10,7 @@ members = [
     "crates/valua-codegen",
     "crates/valua-diagnostics",
     "crates/valua-polyfills",
+    "crates/valua-bench",
 ]
 resolver = "2"
 
