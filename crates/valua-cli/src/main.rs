@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::info;
 use valua_core::{CompileOptions, Compiler, Target};
 use valua_diagnostics::{ConsoleReporter, Reporter};
@@ -86,6 +86,8 @@ fn main() -> Result<()> {
 }
 
 fn cmd_build(input: PathBuf, output: Option<PathBuf>, target: TargetArg) -> Result<()> {
+    use std::io::Write as _;
+
     let source = std::fs::read_to_string(&input)
         .with_context(|| format!("failed to read '{}'", input.display()))?;
 
@@ -96,9 +98,55 @@ fn cmd_build(input: PathBuf, output: Option<PathBuf>, target: TargetArg) -> Resu
         ..CompileOptions::default()
     };
 
-    // TODO: remove this placeholder once Compiler::compile is implemented
-    let _result = Compiler::compile(&source, opts);
-    todo!("handle compile result and write to output or stdout")
+    let lua = Compiler::compile(&source, opts)
+        .with_context(|| format!("compilation failed: '{}'", input.display()))?;
+
+    match output {
+        Some(ref path) => {
+            let bytes = lua.len();
+            atomic_write(path, &lua)?;
+            println!("{}: {bytes} bytes written", path.display());
+        }
+        None => {
+            // No output path — write transpiled source to stdout for pipeline use.
+            let stdout = std::io::stdout();
+            let mut out = std::io::BufWriter::new(stdout.lock());
+            out.write_all(lua.as_bytes()).context("failed to write to stdout")?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Write `content` to `path` atomically by staging through a sibling temp file.
+///
+/// Creates `.{stem}.{pid}.tmp` in the same directory as `path`, writes
+/// `content` via a buffered writer, flushes, then renames onto `path`.
+/// `rename(2)` is atomic on POSIX when src and dst are on the same filesystem;
+/// on Windows (Vista+) it also overwrites atomically.
+/// The temp file is removed on write failure to avoid leaving stale files.
+fn atomic_write(path: &Path, content: &str) -> Result<()> {
+    use std::io::Write as _;
+
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "_".to_string());
+    let tmp = path.with_file_name(format!(".{stem}.{pid}.tmp", pid = std::process::id()));
+
+    let write_result = (|| -> std::io::Result<()> {
+        let mut w = std::io::BufWriter::new(std::fs::File::create(&tmp)?);
+        w.write_all(content.as_bytes())?;
+        w.flush()
+    })();
+
+    if let Err(e) = write_result {
+        let _ = std::fs::remove_file(&tmp); // best-effort; ignore secondary error
+        return Err(e).with_context(|| format!("failed to write '{}'", path.display()));
+    }
+
+    std::fs::rename(&tmp, path)
+        .with_context(|| format!("failed to finalize '{}'", path.display()))
 }
 
 fn cmd_check(input: PathBuf) -> Result<()> {
