@@ -6,6 +6,11 @@ version.workspace     = true
 authors.workspace     = true
 license.workspace     = true
 rust-version.workspace = true
+repository.workspace  = true
+homepage.workspace    = true
+readme.workspace      = true
+keywords    = ["lua", "transpiler", "luajit", "compiler"]
+categories  = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "valua"

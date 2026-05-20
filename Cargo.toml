@@ -33,6 +33,9 @@ version      = "0.1.0"
 authors      = ["leonardespi"]
 license      = "MIT"
 rust-version = "1.75"
+repository   = "https://github.com/leonardespi/valua"
+homepage     = "https://github.com/leonardespi/valua"
+readme       = "README.md"
 
 [workspace.dependencies]
 # Internal crates
