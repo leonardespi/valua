@@ -12,27 +12,25 @@
     <i>A modern, high-performance Lua 5.5 to LuaJIT compiler written in Rust.</i>
 </p>
 
-<a href="https://crates.io/crates/valua">
-    <img src="https://img.shields.io/crates/v/valua?color=%23e9573f&label=crates.io" alt="Crates.io version">
-</a>
-
-
 <p align="center">
-<a href="https://github.com/leonardespi/valua/actions/workflows/test.yml">
-    <img src="https://github.com/leonardespi/valua/actions/workflows/test.yml/badge.svg" alt="Test Status">
-</a>
-
-<a href="https://github.com/leonardespi/valua/blob/main/LICENSE">
+  <a href="https://github.com/leonardespi/valua/actions/workflows/ci.yml">
+    <img src="https://github.com/leonardespi/valua/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <a href="https://crates.io/crates/valua-cli">
+    <img src="https://img.shields.io/crates/v/valua-cli?label=valua-cli&color=%23e9573f" alt="valua-cli on crates.io">
+  </a>
+  <a href="https://crates.io/crates/valua-lint">
+    <img src="https://img.shields.io/crates/v/valua-lint?label=valua-lint&color=%23e9573f" alt="valua-lint on crates.io">
+  </a>
+  <a href="https://github.com/leonardespi/valua/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/leonardespi/valua?color=blue" alt="License">
-</a>
-
-<a href="https://www.lua.org/manual/5.5/">
-    <img src="https://img.shields.io/badge/lua-5.5-002040?logo=lua&logoColor=white" alt="Supported Lua Source Version">
-</a>
-<a href="https://luajit.org/">
-    <img src="https://img.shields.io/badge/target-LuaJIT-208888" alt="Compatible with LuaJIT">
-</a>
-
+  </a>
+  <a href="https://www.lua.org/manual/5.5/">
+    <img src="https://img.shields.io/badge/lua-5.5-002040?logo=lua&logoColor=white" alt="Lua 5.5 source">
+  </a>
+  <a href="https://luajit.org/">
+    <img src="https://img.shields.io/badge/target-LuaJIT-208888" alt="LuaJIT target">
+  </a>
 </p>
 
 ---
