@@ -180,6 +180,23 @@ install-hooks:
     @echo "✓ Pre-commit hook installed. It runs 'just check-fast' before each commit."
 
 # ----------------------------------------------------------------------------
+# Fuzzing (requires: rustup toolchain install nightly && cargo install cargo-fuzz)
+# Supported on Linux and macOS only (libFuzzer does not run on Windows).
+# ----------------------------------------------------------------------------
+
+# Run the lexer fuzz target. Press Ctrl+C to stop.
+fuzz-lex:
+    cargo +nightly fuzz run lex
+
+# Run the parser fuzz target. Press Ctrl+C to stop.
+fuzz-parse:
+    cargo +nightly fuzz run parse
+
+# List all fuzz targets.
+fuzz-list:
+    cargo +nightly fuzz list
+
+# ----------------------------------------------------------------------------
 # Release helpers
 # ----------------------------------------------------------------------------
 

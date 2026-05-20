@@ -22,5 +22,10 @@ perf.data
 perf.data.old
 flamegraph.svg
 
+# ── Fuzzing ──────────────────────────────────────────────────────────────────
+fuzz/target/
+fuzz/corpus/
+fuzz/artifacts/
+
 # ── Project-specific ─────────────────────────────────────────────────────────
 claudeDocumentation
