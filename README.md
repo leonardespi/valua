@@ -19,9 +19,6 @@
   <a href="https://crates.io/crates/valua-cli">
     <img src="https://img.shields.io/crates/v/valua-cli?label=valua-cli&color=%23e9573f" alt="valua-cli on crates.io">
   </a>
-  <a href="https://crates.io/crates/valua-cli">
-    <img src="https://img.shields.io/crates/d/valua-cli?label=downloads&color=%23e9573f" alt="valua-cli downloads">
-  </a>
   <a href="https://crates.io/crates/valua-lint">
     <img src="https://img.shields.io/crates/v/valua-lint?label=valua-lint&color=%23e9573f" alt="valua-lint on crates.io">
   </a>
