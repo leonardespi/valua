@@ -39,15 +39,15 @@ readme       = "README.md"
 
 [workspace.dependencies]
 # Internal crates
-valua-ast         = { path = "crates/valua-ast" }
-valua-core        = { path = "crates/valua-core" }
-valua-lexer       = { path = "crates/valua-lexer" }
-valua-lint        = { path = "crates/valua-lint" }
-valua-parser      = { path = "crates/valua-parser" }
-valua-transformer = { path = "crates/valua-transformer" }
-valua-codegen     = { path = "crates/valua-codegen" }
-valua-diagnostics = { path = "crates/valua-diagnostics" }
-valua-polyfills   = { path = "crates/valua-polyfills" }
+valua-ast         = { path = "crates/valua-ast",         version = "0.1.0" }
+valua-core        = { path = "crates/valua-core",        version = "0.1.0" }
+valua-lexer       = { path = "crates/valua-lexer",       version = "0.1.0" }
+valua-lint        = { path = "crates/valua-lint",        version = "0.1.0" }
+valua-parser      = { path = "crates/valua-parser",      version = "0.1.0" }
+valua-transformer = { path = "crates/valua-transformer", version = "0.1.0" }
+valua-codegen     = { path = "crates/valua-codegen",     version = "0.1.0" }
+valua-diagnostics = { path = "crates/valua-diagnostics", version = "0.1.0" }
+valua-polyfills   = { path = "crates/valua-polyfills",   version = "0.1.0" }
 
 # External dependencies
 logos               = "0.14"
