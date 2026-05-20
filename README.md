@@ -16,12 +16,12 @@
     <img src="https://img.shields.io/crates/v/valua?color=%23e9573f&label=crates.io" alt="Crates.io version">
 </a>
 
-<!--
+
 <p align="center">
 <a href="https://github.com/leonardespi/valua/actions/workflows/test.yml">
     <img src="https://github.com/leonardespi/valua/actions/workflows/test.yml/badge.svg" alt="Test Status">
 </a>
--->
+
 <a href="https://github.com/leonardespi/valua/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/leonardespi/valua?color=blue" alt="License">
 </a>
