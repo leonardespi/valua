@@ -152,30 +152,6 @@ fn read_file(path: &Path) -> String {
         .replace("\r\n", "\n")
 }
 
-// ── Decimal-emission helpers ──────────────────────────────────────────────────
-
-/// Returns true if `line` contains a non-decimal integer literal (`0x…` / `0b…`)
-/// outside of a Lua line comment. Conservative: also fires inside string literals,
-/// which is acceptable — fixture expected files must not contain hex string content.
-fn has_non_decimal_int_literal(line: &str) -> bool {
-    let trimmed = line.trim_start();
-    if trimmed.starts_with("--") {
-        return false;
-    }
-    let bytes = line.as_bytes();
-    let mut i = 0;
-    while i + 1 < bytes.len() {
-        if bytes[i] == b'0'
-            && matches!(bytes[i + 1], b'x' | b'X' | b'b' | b'B')
-            && (i == 0 || !bytes[i - 1].is_ascii_alphanumeric())
-        {
-            return true;
-        }
-        i += 1;
-    }
-    false
-}
-
 /// Returns the leading VERIFIED/INFERRED/CONJECTURE/Evidence tag comment lines.
 fn extract_header_lines(content: &str) -> Vec<String> {
     content
@@ -210,25 +186,6 @@ fn meta_error_fixtures_have_valid_codes() {
             code
         );
     }
-}
-
-#[test]
-fn meta_no_hex_in_success_fixture_expected_files() {
-    let mut violations: Vec<String> = Vec::new();
-    for (name, path) in discover_success_fixtures() {
-        let expected_path = path.join("expected.lua");
-        let content = read_file(&expected_path);
-        for (line_no, line) in content.lines().enumerate() {
-            if has_non_decimal_int_literal(line) {
-                violations.push(format!("{}:{}: {}", name, line_no + 1, line.trim()));
-            }
-        }
-    }
-    assert!(
-        violations.is_empty(),
-        "Decimal emission contract violated in expected.lua files:\n{}",
-        violations.join("\n")
-    );
 }
 
 #[test]
@@ -488,7 +445,7 @@ fn fixture_e0401_post55_feature() {
 // ── UV2: Precedence round-trip adversarial fuzzing ────────────────────────────
 
 mod prec_fuzz {
-    use valua_ast::{BinaryOp, Block, Expression, Return, Statement, UnaryOp};
+    use valua_ast::{BinaryOp, Block, Expression, IntRepr, Return, Statement, UnaryOp};
     use valua_codegen::{CodeGen, LuaEmitter};
     use valua_diagnostics::Span;
 
@@ -571,7 +528,7 @@ mod prec_fuzz {
             // Non-negative integers only: the parser always produces
             // UnOp(Neg, Integer(n)) for negative literals, never Integer(-n),
             // which would cause a spurious structural mismatch.
-            Expression::Integer(rng.pick(100) as i64, sp())
+            Expression::Integer(rng.pick(100) as i64, IntRepr::Decimal, sp())
         } else {
             Expression::Name(NAMES[rng.pick(NAMES.len())].to_string(), sp())
         }
@@ -589,7 +546,7 @@ mod prec_fuzz {
 
     fn expr_eq(a: &Expression, b: &Expression) -> bool {
         match (a, b) {
-            (Expression::Integer(va, _), Expression::Integer(vb, _)) => va == vb,
+            (Expression::Integer(va, _, _), Expression::Integer(vb, _, _)) => va == vb,
             (Expression::Name(na, _), Expression::Name(nb, _)) => na == nb,
             (Expression::BinOp(la, oa, ra, _), Expression::BinOp(lb, ob, rb, _)) => {
                 oa == ob && expr_eq(la, lb) && expr_eq(ra, rb)
