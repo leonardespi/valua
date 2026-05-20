@@ -255,8 +255,7 @@ fn generate_markdown(
         _ => false,
     };
 
-    let output_agree =
-        a.stdout_sample == b.stdout_sample && b.stdout_sample == c.stdout_sample;
+    let output_agree = a.stdout_sample == b.stdout_sample && b.stdout_sample == c.stdout_sample;
 
     let mut md = String::new();
 
@@ -281,8 +280,16 @@ fn generate_markdown(
 
     writeln!(md, "## Timing Results").unwrap();
     writeln!(md).unwrap();
-    writeln!(md, "| Target | Median (µs) | P95 (µs) | Mean (µs) | Samples (µs) |").unwrap();
-    writeln!(md, "|--------|-------------|----------|-----------|--------------|").unwrap();
+    writeln!(
+        md,
+        "| Target | Median (µs) | P95 (µs) | Mean (µs) | Samples (µs) |"
+    )
+    .unwrap();
+    writeln!(
+        md,
+        "|--------|-------------|----------|-----------|--------------|"
+    )
+    .unwrap();
     for r in results {
         let samples: Vec<String> = r.samples_us.iter().map(|v| v.to_string()).collect();
         writeln!(
