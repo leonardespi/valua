@@ -84,6 +84,8 @@ Programs relying on features that break target execution invariants are strictly
 | `E0301` | Mutation of a `<const>` binding | Detected modification of a compile-time immutable reference. |
 | `E04xx` | Unrecognized downstream syntax constructs | Token sequences belonging to experimental features or newer specifications. |
 
+Run `valua explain <code>` (e.g. `valua explain E0101`) for full documentation, examples, and remediation guidance on any error code.
+
 ---
 
 ## Technical Constraints & Design Philosophy
@@ -128,6 +130,9 @@ valua lint input.lua --target luajit
 
 # Output current version descriptor
 valua version
+
+# Print full documentation for a diagnostic error code (case-insensitive)
+valua explain E0101
 
 ```
 
