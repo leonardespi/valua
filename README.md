@@ -41,7 +41,7 @@
 
 ---
 
-**Documentation**:
+**Documentation**: [https://github.com/leonardespi/valua](https://github.com/leonardespi/valua)
 
 **Source Code**: [https://github.com/leonardespi/valua](https://github.com/leonardespi/valua)
 
@@ -72,6 +72,28 @@
 | `<close>` Attribute | Scoped `pcall` wrapper invoking the `__close` metamethod on deterministic exit | **Negligible** — Minor structural overhead optimized for I/O-bound resource lifecycles. |
 | Compact Array Literals | Passthrough optimization — semantic translation is uniform between versions | **Native** |
 | `<global>` Declarations | Compiled directly into explicit global context `_G` dictionary assignments | **Native** |
+
+### Translation Example
+
+```lua
+-- Input: Lua 5.5
+local function process(mask, value)
+    local result = value & mask    -- bitwise AND
+    local half   = result // 2     -- integer floor division
+    return half | 0xFF00           -- bitwise OR
+end
+```
+
+```lua
+-- Output: Lua 5.1 / LuaJIT  (valua build input.lua --target luajit)
+local function process(mask, value)
+    local result = bit.band(value, mask)
+    local half = math.floor(result / 2)
+    return bit.bor(half, 65280)
+end
+```
+
+No polyfill injection when targeting LuaJIT — `bit.*` functions are native intrinsics compiled to single-cycle machine instructions. For the `--target lua51` target, a pure-Lua `bit` compatibility table is prepended automatically.
 
 ## Performance
 
@@ -129,6 +151,23 @@ Programs relying on features that break target execution invariants are strictly
 | `E0301` | Mutation of a `<const>` binding | Detected modification of a compile-time immutable reference. |
 | `E04xx` | Unrecognized downstream syntax constructs | Token sequences belonging to experimental features or newer specifications. |
 
+### Diagnostic Output
+
+Every rejection emits a precise span-annotated error. No silent failures, no stack traces — just the line, the token, and the fix.
+
+```
+$ valua check input.lua
+
+error[E0101]: math.type observes the integer/float distinction absent in LuaJIT
+  ┌─ input.lua:1:11
+  │
+1 │ local t = math.type(1)
+  │           ^^^^^^^^^ math.type observes the integer/float distinction absent in LuaJIT
+  │
+  = note: math.type() has no equivalent in LuaJIT; all numbers are IEEE 754 doubles
+  = help: Remove type discrimination or track numeric kind explicitly in user data
+```
+
 Run `valua explain <code>` (e.g. `valua explain E0101`) for full documentation, examples, and remediation guidance on any error code.
 
 ---
@@ -181,6 +220,11 @@ valua explain E0101
 
 ```
 
+> **Note:** `valua build` operates on single source files. Directory-wide compilation is not yet supported. For large codebases, invoke valua per-file via shell scripting:
+> ```sh
+> find src -name '*.lua' | xargs -I{} valua build {} --target luajit -o dist/{}.out
+> ```
+
 ---
 
 ## Toolchain Development
@@ -194,10 +238,14 @@ valua explain E0101
 # Install development task runner
 cargo install just
 
-# Configure continuous integration pre-commit verification hooks
+# Install the pre-commit hook into .git/hooks/pre-commit
 just install-hooks
+# The hook runs `just check-fast` on every commit:
+#   1. cargo fmt --all -- --check   (formatting, must be exact)
+#   2. cargo clippy -- -D warnings  (all lints are errors)
+#   3. cargo test --workspace       (full test suite)
 
-# Run the complete test and formatting suite (Mandatory before opening PRs)
+# Run the complete check suite manually (fmt + clippy + test + release build)
 just check
 
 # Execute test suite targets exclusively
@@ -224,6 +272,6 @@ just test-one bitwise_and
 
 ## License
 
-Distributed under the terms of the MIT License. Review [LICENSE](https://www.google.com/search?q=LICENSE) for absolute legal terms.
+Distributed under the terms of the MIT License. Review [LICENSE](./LICENSE) for absolute legal terms.
 
 
