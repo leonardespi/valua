@@ -62,6 +62,7 @@ impl std::fmt::Display for Span {
 
 impl Span {
     /// Create a new span from raw fields.
+    #[must_use]
     pub fn new(start: usize, end: usize, line: u32, col: u32) -> Self {
         Self {
             start,
@@ -72,6 +73,7 @@ impl Span {
     }
 
     /// Placeholder span for generated nodes that have no source location.
+    #[must_use]
     pub fn dummy() -> Self {
         Self {
             start: 0,
@@ -85,6 +87,7 @@ impl Span {
     ///
     /// The column of the merged span comes from whichever span starts first
     /// in the source (smaller `start` offset).
+    #[must_use]
     pub fn merge(self, other: Self) -> Self {
         let first = if self.start <= other.start {
             self
@@ -122,6 +125,8 @@ pub struct Diagnostic {
     pub code: Option<&'static str>,
     /// Human-readable fix hint shown below the message.
     pub suggestion: Option<String>,
+    /// Informational context note rendered before the suggestion.
+    pub note: Option<String>,
     /// Additional labeled spans rendered alongside the primary span.
     /// Each entry is `(span, label_message)`.
     pub secondary_labels: Vec<(Span, String)>,
@@ -129,6 +134,7 @@ pub struct Diagnostic {
 
 impl Diagnostic {
     /// Build an error-level diagnostic.
+    #[must_use]
     pub fn error(message: impl Into<String>, span: Span) -> Self {
         Self {
             severity: Severity::Error,
@@ -136,11 +142,13 @@ impl Diagnostic {
             span,
             code: None,
             suggestion: None,
+            note: None,
             secondary_labels: Vec::new(),
         }
     }
 
     /// Build a warning-level diagnostic.
+    #[must_use]
     pub fn warning(message: impl Into<String>, span: Span) -> Self {
         Self {
             severity: Severity::Warning,
@@ -148,11 +156,13 @@ impl Diagnostic {
             span,
             code: None,
             suggestion: None,
+            note: None,
             secondary_labels: Vec::new(),
         }
     }
 
     /// Build a note-level diagnostic.
+    #[must_use]
     pub fn note(message: impl Into<String>, span: Span) -> Self {
         Self {
             severity: Severity::Note,
@@ -160,24 +170,35 @@ impl Diagnostic {
             span,
             code: None,
             suggestion: None,
+            note: None,
             secondary_labels: Vec::new(),
         }
     }
 
     /// Attach a short error code.
+    #[must_use]
     pub fn with_code(mut self, code: &'static str) -> Self {
         self.code = Some(code);
         self
     }
 
     /// Attach a fix suggestion shown to the user.
+    #[must_use]
     pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
         self.suggestion = Some(suggestion.into());
         self
     }
 
+    /// Attach an informational context note shown before the suggestion.
+    #[must_use]
+    pub fn with_note(mut self, note: impl Into<String>) -> Self {
+        self.note = Some(note.into());
+        self
+    }
+
     /// Attach an additional labeled span shown alongside the primary span.
     /// Used for two-location diagnostics such as E0301 (declaration + mutation site).
+    #[must_use]
     pub fn with_secondary_label(mut self, span: Span, message: impl Into<String>) -> Self {
         self.secondary_labels.push((span, message.into()));
         self
@@ -239,8 +260,15 @@ fn render_to_writer(
         cs_diag = cs_diag.with_code(code);
     }
 
+    let mut notes: Vec<String> = Vec::new();
+    if let Some(ref note) = diagnostic.note {
+        notes.push(format!("note: {note}"));
+    }
     if let Some(ref suggestion) = diagnostic.suggestion {
-        cs_diag = cs_diag.with_notes(vec![format!("suggestion: {suggestion}")]);
+        notes.push(format!("help: {suggestion}"));
+    }
+    if !notes.is_empty() {
+        cs_diag = cs_diag.with_notes(notes);
     }
 
     let config = term::Config::default();
@@ -251,6 +279,7 @@ fn render_to_writer(
 
 /// Render a diagnostic to a plain string with no ANSI color codes.
 /// Intended for tests that verify visual layout of error output.
+#[must_use]
 pub fn render_diagnostic_to_string(
     diagnostic: &Diagnostic,
     source: &str,
@@ -270,6 +299,7 @@ pub struct ConsoleReporter {
 
 impl ConsoleReporter {
     /// Create a reporter with explicit color control.
+    #[must_use]
     pub fn new(color: ColorChoice) -> Self {
         Self {
             error_count: 0,
@@ -278,6 +308,7 @@ impl ConsoleReporter {
     }
 
     /// Create a reporter that auto-detects color support on stderr.
+    #[must_use]
     pub fn stderr() -> Self {
         Self::new(ColorChoice::Auto)
     }
