@@ -158,13 +158,13 @@ just test-one bitwise_and
 
 ## Ecosystem Positioning & Future-Proofing
 
-A common architectural inquiry is how `valua` positions itself if alternative downstream runtime initiatives reach production feature parity with modern versions of the upstream PUC-Rio language specification.
+**Q: What happens to `valua` if LuaJIT Remake (LJR) reaches production with Lua 5.4 support?**
 
-The design of `valua` targets the structural reality of ecosystem fragmentation rather than a static version gap:
+**A:** `valua` remains useful. The design targets the structural reality of Lua's ecosystem fragmentation, not a single version gap:
 
-1. **Runtimes Diversify, Fragmentation Remains:** Even as alternative runtimes advance, version drift remains an inherent trait of the ecosystem. `valua` decouples development velocity from targeted execution platforms.
-2. **Value of Isolated Static Analysis:** The modular design of `valua-lint` remains highly valuable regardless of runtime environment configurations; verifying deterministic portability and enforcing syntactic consistency inside CI infrastructures is critical to enterprise scale.
-3. **Extensible Pipeline Layout:** The architecture is explicitly non-monolithic. The parser engine accepts the broad syntactic union of modern versions (up to Lua 5.5+) with engineered tolerance for future grammar adjustments. Introducing support for incoming language syntax variations is achieved by layering downstream AST transformer passes rather than engineering core parser rewrites.
+1. **`valua-lint` stays relevant regardless of runtime:** Verifying cross-runtime portability becomes *more* important with more runtime options, not less. CI pipelines that catch LuaJIT-incompatible syntax at commit time are useful whether LJR exists or not.
+2. **Lua 5.5 is already out; fragmentation continues:** LJR targeting Lua 5.4 doesn't unify the ecosystem. The parser is built to handle Lua 5.5+ source and future grammar extensions without core rewrites.
+3. **Modular codegen enables new targets:** Adding Luau, Teal, or an LJR-native target is a new backend pass, not an architectural change. `valua` is not a bet on the 5.4↔5.1 gap specifically — it is infrastructure for Lua's permanently fragmented runtime landscape.
 
 ---
 
