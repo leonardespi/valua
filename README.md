@@ -19,8 +19,17 @@
   <a href="https://crates.io/crates/valua-cli">
     <img src="https://img.shields.io/crates/v/valua-cli?label=valua-cli&color=%23e9573f" alt="valua-cli on crates.io">
   </a>
+  <a href="https://crates.io/crates/valua-cli">
+    <img src="https://img.shields.io/crates/d/valua-cli?label=downloads&color=%23e9573f" alt="valua-cli downloads">
+  </a>
   <a href="https://crates.io/crates/valua-lint">
     <img src="https://img.shields.io/crates/v/valua-lint?label=valua-lint&color=%23e9573f" alt="valua-lint on crates.io">
+  </a>
+  <a href="https://docs.rs/valua-lint">
+    <img src="https://img.shields.io/docsrs/valua-lint?label=docs.rs" alt="valua-lint docs">
+  </a>
+  <a href="https://deps.rs/repo/github/leonardespi/valua">
+    <img src="https://deps.rs/repo/github/leonardespi/valua/status.svg" alt="dependency status">
   </a>
   <a href="https://github.com/leonardespi/valua/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/leonardespi/valua?color=blue" alt="License">
