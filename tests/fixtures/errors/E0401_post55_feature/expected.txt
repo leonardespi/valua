@@ -1,10 +1,9 @@
--- CONJECTURE: post-Lua-5.5 parser behavior entirely unverified; forward-looking placeholder; see CONJECTURE_REGISTER.md C014
-error[E0401]: unsupported Lua version feature
-  --> input.lua:6:11
-   |
-6  | local x <future_attr> = 42
-   |          ^^^^^^^^^^^
-   |
-   = note: The <future_attr> attribute is not supported in valua 1.0; it is a post-Lua-5.5 feature
-   = help: Remove the attribute or wait for support to be implemented in a future version
-   = see:  PRD §14 Pivote A
+error[E0202]: unknown attribute `future_attr`
+  ┌─ input.lua:6:10
+  │
+6 │ local x <future_attr> = 42
+  │          ^^^^^^^^^^^ unknown attribute `future_attr`
+  │
+  = note: `<future_attr>` is not a valid Lua 5.4/5.5 attribute
+  = help: valid attributes are `<const>` and `<close>`
+

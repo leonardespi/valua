@@ -370,6 +370,13 @@ fn render_lint_diagnostics(source: &str, err: valua_core::CompileError) -> Strin
         .join("")
 }
 
+fn render_parse_diagnostic(source: &str, err: valua_core::CompileError) -> String {
+    let diag = err
+        .into_parse_diagnostic()
+        .expect("expected CompileError::Parse, got something else");
+    render_diagnostic_to_string(&diag, source, "input.lua")
+}
+
 #[test]
 fn fixture_e0103_math_tointeger() {
     let root = Path::new(FIXTURE_ROOT)
@@ -423,23 +430,16 @@ fn fixture_e0301_const_mutation() {
 }
 
 #[test]
-fn fixture_e0401_post55_feature() {
+fn fixture_e0202_invalid_attribute() {
     let root = Path::new(FIXTURE_ROOT)
         .join("errors")
         .join("E0401_post55_feature");
     let input = read_file(&root.join("input.lua"));
+    let expected = read_file(&root.join("expected.txt"));
     let err = Compiler::compile(&input, CompileOptions::luajit())
-        .expect_err("expected E0401 compile error");
-    // Unknown attribute is a parse error (not a lint diagnostic).
-    assert!(
-        matches!(err, valua_core::CompileError::Parse(_)),
-        "expected CompileError::Parse for unknown attribute, got: {err:?}"
-    );
-    // Error message must name the unrecognized attribute.
-    assert!(
-        err.to_string().contains("future_attr"),
-        "error should identify the unknown attribute: {err}"
-    );
+        .expect_err("expected E0202 compile error");
+    let rendered = render_parse_diagnostic(&input, err);
+    pretty_assertions::assert_eq!(rendered, expected);
 }
 
 // ── UV2: Precedence round-trip adversarial fuzzing ────────────────────────────
