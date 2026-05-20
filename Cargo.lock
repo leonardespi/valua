@@ -687,6 +687,7 @@ dependencies = [
  "valua-core",
  "valua-diagnostics",
  "valua-parser",
+ "valua-polyfills",
 ]
 
 [[package]]

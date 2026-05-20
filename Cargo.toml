@@ -72,5 +72,6 @@ valua-ast         = { workspace = true }
 valua-codegen     = { workspace = true }
 valua-parser      = { workspace = true }
 valua-diagnostics = { workspace = true }
+valua-polyfills   = { workspace = true }
 insta             = { workspace = true }
 pretty_assertions = { workspace = true }
