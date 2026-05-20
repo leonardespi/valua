@@ -1,13 +1,11 @@
--- CONJECTURE: no runtime available; two-span diagnostic format and column numbers unverified; see CONJECTURE_REGISTER.md C013
 error[E0301]: assignment to const variable `x`
-  --> input.lua:4:1
-   |
-3  | local x <const> = 42
-   |       ^ declared as const here
-   | ...
-4  | x = 99
-   | ^ cannot assign to const variable
-   |
-   = note: Variable `x` was declared with the <const> attribute
-   = help: Remove the assignment or remove the <const> attribute from the declaration
-   = see:  PRD §5.1
+  ┌─ input.lua:5:1
+  │
+4 │ local x <const> = 42
+  │       - declared as const here
+5 │ x = 99
+  │ ^ assignment to const variable `x`
+  │
+  = note: `x` was declared with <const>; Lua 5.4 treats this as a compile-time constant
+  = help: Remove the assignment or remove the <const> attribute from the declaration
+

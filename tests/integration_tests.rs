@@ -2,9 +2,23 @@
 //! See tests/fixtures/README.md for fixture format.
 //! See docs/FIXTURE_ORCHESTRATOR.md for the workflow that produces fixtures.
 
+// Test utilities use patterns that trigger pedantic lints; suppress them here rather than
+// scattering individual allows across hundreds of test functions.
+#![allow(
+    clippy::unreadable_literal,    // exact integer literals in fixtures (e.g. math.maxinteger)
+    clippy::uninlined_format_args, // clearer to keep args separate in panics/assertions
+    clippy::manual_assert,         // if !x { panic!(...) } is fine in test helpers
+    clippy::redundant_closure_for_method_calls, // closures in iterators are often more readable
+    clippy::unnecessary_join,      // explicit join clearer than alternative
+    clippy::doc_markdown,          // test comments don't need backtick discipline
+    clippy::cast_possible_wrap,    // span field conversions bounded by source length
+    clippy::map_unwrap_or,         // map().unwrap_or() readable in test contexts
+)]
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use valua_core::{CompileOptions, Compiler};
+use valua_diagnostics::render_diagnostic_to_string;
 
 const FIXTURE_ROOT: &str = "tests/fixtures";
 
@@ -366,15 +380,28 @@ fn fixture_close_attribute_error_path() {
 
 // ── Error fixture tests ───────────────────────────────────────────────────────
 
+fn render_lint_diagnostics(source: &str, err: valua_core::CompileError) -> String {
+    let valua_core::CompileError::Lint(diags) = err else {
+        panic!("expected CompileError::Lint, got something else");
+    };
+    diags
+        .iter()
+        .map(|d| render_diagnostic_to_string(d, source, "input.lua"))
+        .collect::<Vec<_>>()
+        .join("")
+}
+
 #[test]
 fn fixture_e0103_math_tointeger() {
     let root = Path::new(FIXTURE_ROOT)
         .join("errors")
         .join("E0103_math_tointeger");
     let input = read_file(&root.join("input.lua"));
-    let result = Compiler::compile(&input, CompileOptions::luajit());
-    assert!(result.is_err(), "expected E0103 compile error");
-    // TODO(Phase 5, M16): render diagnostic and compare against expected.txt
+    let expected = read_file(&root.join("expected.txt"));
+    let err = Compiler::compile(&input, CompileOptions::luajit())
+        .expect_err("expected E0103 compile error");
+    let rendered = render_lint_diagnostics(&input, err);
+    pretty_assertions::assert_eq!(rendered, expected);
 }
 
 #[test]
@@ -383,9 +410,11 @@ fn fixture_e0101_math_type() {
         .join("errors")
         .join("E0101_math_type");
     let input = read_file(&root.join("input.lua"));
-    let result = Compiler::compile(&input, CompileOptions::luajit());
-    assert!(result.is_err(), "expected E0101 compile error");
-    // TODO(Phase 5, M16): render diagnostic and compare against expected.txt
+    let expected = read_file(&root.join("expected.txt"));
+    let err = Compiler::compile(&input, CompileOptions::luajit())
+        .expect_err("expected E0101 compile error");
+    let rendered = render_lint_diagnostics(&input, err);
+    pretty_assertions::assert_eq!(rendered, expected);
 }
 
 #[test]
@@ -394,9 +423,11 @@ fn fixture_e0102_integer_overflow() {
         .join("errors")
         .join("E0102_integer_overflow");
     let input = read_file(&root.join("input.lua"));
-    let result = Compiler::compile(&input, CompileOptions::luajit());
-    assert!(result.is_err(), "expected E0102 compile error");
-    // TODO(Phase 5, M16): render diagnostic and compare against expected.txt
+    let expected = read_file(&root.join("expected.txt"));
+    let err = Compiler::compile(&input, CompileOptions::luajit())
+        .expect_err("expected E0102 compile error");
+    let rendered = render_lint_diagnostics(&input, err);
+    pretty_assertions::assert_eq!(rendered, expected);
 }
 
 #[test]
@@ -405,9 +436,11 @@ fn fixture_e0301_const_mutation() {
         .join("errors")
         .join("E0301_const_mutation");
     let input = read_file(&root.join("input.lua"));
-    let result = Compiler::compile(&input, CompileOptions::luajit());
-    assert!(result.is_err(), "expected E0301 compile error");
-    // TODO(Phase 5, M16): render diagnostic and compare against expected.txt
+    let expected = read_file(&root.join("expected.txt"));
+    let err = Compiler::compile(&input, CompileOptions::luajit())
+        .expect_err("expected E0301 compile error");
+    let rendered = render_lint_diagnostics(&input, err);
+    pretty_assertions::assert_eq!(rendered, expected);
 }
 
 #[test]
@@ -436,7 +469,8 @@ mod prec_fuzz {
             Self(seed)
         }
         fn next(&mut self) -> u64 {
-            self.0 = self.0
+            self.0 = self
+                .0
                 .wrapping_mul(6364136223846793005)
                 .wrapping_add(1442695040888963407);
             self.0
@@ -452,7 +486,7 @@ mod prec_fuzz {
         BinaryOp::Mul,
         BinaryOp::Div,
         BinaryOp::Mod,
-        BinaryOp::Pow,       // right-assoc, highest prec
+        BinaryOp::Pow, // right-assoc, highest prec
         BinaryOp::IDiv,
         BinaryOp::Lt,
         BinaryOp::Le,
@@ -467,7 +501,7 @@ mod prec_fuzz {
         BinaryOp::BitwiseXor, // `~` same token as unary BitwiseNot
         BinaryOp::Shl,
         BinaryOp::Shr,
-        BinaryOp::Concat,     // right-assoc
+        BinaryOp::Concat, // right-assoc
     ];
 
     const UNOPS: &[UnaryOp] = &[
@@ -561,9 +595,7 @@ mod prec_fuzz {
             let parsed_block = match valua_parser::parse(&lua_src) {
                 Ok(b) => b,
                 Err(e) => {
-                    failures.push(format!(
-                        "seed {seed}: parse error: {e}\n  lua: {lua_src}"
-                    ));
+                    failures.push(format!("seed {seed}: parse error: {e}\n  lua: {lua_src}"));
                     continue;
                 }
             };
