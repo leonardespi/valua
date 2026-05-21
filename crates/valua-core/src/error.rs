@@ -27,6 +27,7 @@ impl CompileError {
     ///
     /// Returns `None` for non-parse errors; callers that need the diagnostic
     /// regardless of variant should match explicitly.
+    #[must_use]
     pub fn into_parse_diagnostic(self) -> Option<Diagnostic> {
         match self {
             Self::Parse(e) => Some(e.into_diagnostic()),

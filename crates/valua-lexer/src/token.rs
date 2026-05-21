@@ -501,6 +501,7 @@ pub enum Token {
 
 impl Token {
     /// Short human-readable name for use in diagnostic messages.
+    #[must_use]
     pub fn describe(&self) -> String {
         match self {
             Self::Integer(n) => format!("integer `{n}`"),

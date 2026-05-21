@@ -32,6 +32,7 @@ impl ParseError {
     /// - `E0201`: Unexpected / mismatched token.
     /// - `E0202`: Invalid attribute layout (unknown attribute name).
     /// - `E0203`: Expression nesting depth exceeded.
+    #[must_use]
     pub fn into_diagnostic(self) -> Diagnostic {
         match self {
             Self::Lex(e) => e.into_diagnostic(),

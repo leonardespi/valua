@@ -23,6 +23,7 @@ pub enum LexError {
 }
 
 impl LexError {
+    #[must_use]
     pub fn span(&self) -> Span {
         match self {
             Self::UnexpectedChar { span, .. }
@@ -33,6 +34,7 @@ impl LexError {
         }
     }
 
+    #[must_use]
     pub fn into_diagnostic(self) -> Diagnostic {
         let span = self.span();
         Diagnostic::error(self.to_string(), span)

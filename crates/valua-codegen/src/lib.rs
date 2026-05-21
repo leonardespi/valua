@@ -437,7 +437,7 @@ impl<'opts> EmitContext<'opts> {
                         if *v < 0 {
                             format!("-0x{:x}", v.unsigned_abs())
                         } else {
-                            format!("0x{:x}", v)
+                            format!("0x{v:x}")
                         }
                     }
                 };
